@@ -5,11 +5,11 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
 from PySide6.QtCore import Qt, QPropertyAnimation, QEasingCurve, QSize
 
 # Importa as páginas
-from ui.pages.page_lancamento import PageLancamento
-from ui.pages.page_analise import PageAnalise
-from ui.pages.page_relatorio import PageRelatorio
-from ui.pages.page_dashboard import PageDashboard
-from ui.pages.page_retorno import PageRetorno
+from views.lancamento_view import PageLancamento
+from views.analise_view import PageAnalise
+from views.relatorio_view import PageRelatorio
+from views.dashboard_view import PageDashboard
+from views.retorno_view import PageRetorno
 
 class MainWindow(QMainWindow):
     def __init__(self):

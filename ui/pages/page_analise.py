@@ -6,7 +6,7 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                                QHeaderView, QMessageBox)
 from PySide6.QtCore import Qt
 
-# --- ESTILO ---
+# --- ESTILO (Mantido) ---
 STYLE_SHEET = """
 QWidget {
     background-color: #12161f;
@@ -14,15 +14,11 @@ QWidget {
     font-family: 'Segoe UI', sans-serif;
     font-size: 13px;
 }
-
-/* --- CARDS --- */
 QFrame#FormCard {
     background-color: #1b212d;
     border-radius: 8px;
     border: 1px solid #2c3545;
 }
-
-/* --- INPUTS --- */
 QLineEdit, QComboBox {
     background-color: #171c26;
     border: 1px solid #2c3545;
@@ -39,8 +35,6 @@ QLineEdit:read-only {
     color: #718096;
     border: 1px solid #252b38;
 }
-
-/* --- LABELS --- */
 QLabel { 
     background-color: transparent; 
     color: #a0aec0; 
@@ -53,8 +47,6 @@ QLabel#SectionTitle {
     padding-bottom: 5px; 
     border-bottom: 1px solid #2c3545;
 }
-
-/* --- LABELS DE STATUS --- */
 QLabel#StatusProcedente {
     color: #48bb78; font-weight: bold; background-color: #1b212d; border: 1px solid #2f855a;
 }
@@ -64,8 +56,6 @@ QLabel#StatusImprocedente {
 QLabel#StatusNeutro {
     color: #a0aec0; background-color: #1b212d; border: 1px solid #2c3545;
 }
-
-/* --- TABELA --- */
 QTableWidget {
     background-color: #171c26; 
     alternate-background-color: #202736; 
@@ -85,39 +75,19 @@ QTableWidget::item:selected {
     background-color: #3a5f8a; 
     color: white;
 }
-
-/* --- SCROLLBARS --- */
-QScrollBar:horizontal, QScrollBar:vertical {
-    background-color: #1b212d; 
-    border: none;
-}
+QScrollBar:horizontal, QScrollBar:vertical { background-color: #1b212d; border: none; }
 QScrollBar:horizontal { height: 12px; }
 QScrollBar:vertical   { width: 12px; }
-
 QScrollBar::handle:horizontal, QScrollBar::handle:vertical {
-    background-color: #3a5f8a; 
-    border-radius: 6px;
-    min-height: 20px;
-    min-width: 20px;
+    background-color: #3a5f8a; border-radius: 6px; min-height: 20px;
 }
-QScrollBar::handle:horizontal:hover, QScrollBar::handle:vertical:hover {
-    background-color: #4b7bc0; 
-}
-QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal,
-QScrollBar::add-line:vertical,   QScrollBar::sub-line:vertical {
-    width: 0px; height: 0px;
-}
-QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal,
-QScrollBar::add-page:vertical,   QScrollBar::sub-page:vertical {
-    background: none;
-}
-
-/* --- BOTÕES --- */
+QScrollBar::handle:horizontal:hover, QScrollBar::handle:vertical:hover { background-color: #4b7bc0; }
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0px; }
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: none; }
 QPushButton#btn_primary {
     background-color: #2e7d32; color: white; border: 1px solid #1b5e20; padding: 8px 20px; border-radius: 4px; font-weight: bold;
 }
 QPushButton#btn_primary:hover { background-color: #388e3c; }
-
 QPushButton#btn_secondary {
     background-color: #1b212d; color: #a0aec0; border: 1px solid #2c3e50; padding: 8px 20px; border-radius: 4px;
 }
@@ -170,8 +140,6 @@ class PageAnalise(QWidget):
         self.table.setAlternatingRowColors(True)
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
-        
-        # --- CORREÇÃO AQUI: ATIVANDO A GRADE ---
         self.table.setShowGrid(True) 
         
         header = self.table.horizontalHeader()
@@ -185,7 +153,7 @@ class PageAnalise(QWidget):
         layout.addWidget(card_tabela, stretch=1)
 
         # =================================================================
-        # PARTE 2: FORMULÁRIO DE ANÁLISE (TODOS NA LINHA 1)
+        # PARTE 2: FORMULÁRIO DE ANÁLISE (Layout Compacto)
         # =================================================================
         card_form = QFrame(objectName="FormCard")
         layout_form = QVBoxLayout(card_form)
@@ -196,57 +164,46 @@ class PageAnalise(QWidget):
         lbl_analise.setObjectName("SectionTitle")
         layout_form.addWidget(lbl_analise)
 
-        # --- LINHA ÚNICA: Identificação + Detalhes Físicos ---
+        # --- LINHA 1: Identificação + Detalhes Físicos ---
         row1 = QHBoxLayout()
         
-        # 1. ID
         self.txt_id_item = QLineEdit()
         self.txt_id_item.setPlaceholderText("ID")
         self.txt_id_item.setReadOnly(True)
         self.txt_id_item.setFixedWidth(50) 
         
-        # 2. Peça
         self.txt_peca_nome = QLineEdit()
         self.txt_peca_nome.setPlaceholderText("Selecione um item...")
         self.txt_peca_nome.setReadOnly(True)
         
-        # 3. Série
         self.txt_serie = QLineEdit()
         self.txt_serie.setPlaceholderText("Nº Série")
         self.txt_serie.setFixedWidth(110)
         
-        # 4. Origem
         self.combo_origem = QComboBox()
         self.combo_origem.addItems(["Nacional", "Importado", "Reindustrializado"])
         self.combo_origem.setFixedWidth(110)
 
-        # 5. Fornecedor
         self.txt_fornecedor = QLineEdit()
         self.txt_fornecedor.setPlaceholderText("Fabricante / Distribuidor")
 
-        # Adicionando ao layout
         row1.addWidget(QLabel("ID:"))
         row1.addWidget(self.txt_id_item)
-        
         row1.addWidget(QLabel("Peça:"))
-        # Stretch=1 faz a Peça ocupar espaço extra disponível
         row1.addWidget(self.txt_peca_nome, stretch=1) 
-        
         row1.addWidget(QLabel("Série:"))
         row1.addWidget(self.txt_serie)
-        
         row1.addWidget(QLabel("Origem:"))
         row1.addWidget(self.combo_origem)
-        
         row1.addWidget(QLabel("Forn.:"))
-        # Stretch=1 faz o Fornecedor também crescer
         row1.addWidget(self.txt_fornecedor, stretch=1) 
 
         layout_form.addLayout(row1)
 
-        # --- LINHA 2: Diagnóstico (Cód. Avaria, Descrição, Status) ---
+        # --- LINHA 2: Diagnóstico + Status + BOTÕES (Tudo junto) ---
         row_diag = QHBoxLayout()
 
+        # Componentes do Diagnóstico
         self.combo_cod_avaria = QComboBox()
         self.combo_cod_avaria.addItem("Selecione...", None)
         for cod in self.codigos_avaria:
@@ -264,30 +221,33 @@ class PageAnalise(QWidget):
         self.lbl_status_resultado.setFixedSize(130, 32)
         self.lbl_status_resultado.setStyleSheet("border-radius: 4px;")
 
-        row_diag.addWidget(QLabel("Cód. Avaria:"))
-        row_diag.addWidget(self.combo_cod_avaria)
-        row_diag.addWidget(self.txt_desc_avaria)
-        row_diag.addWidget(self.lbl_status_resultado)
-        layout_form.addLayout(row_diag)
-
-        # --- LINHA 3: Botões (Dentro do Card) ---
-        row_btns = QHBoxLayout()
-        row_btns.setContentsMargins(0, 5, 0, 0)
-
+        # Botões (Instanciados agora para entrar na mesma linha)
         self.btn_cancelar = QPushButton(" Cancelar")
         self.btn_cancelar.setObjectName("btn_secondary")
         self.btn_cancelar.setIcon(qta.icon('fa5s.times', color='#a0aec0'))
         
-        self.btn_concluir = QPushButton(" Concluir Análise")
+        self.btn_concluir = QPushButton(" Concluir")
         self.btn_concluir.setObjectName("btn_primary")
         self.btn_concluir.setIcon(qta.icon('fa5s.check-double', color='white'))
         self.btn_concluir.clicked.connect(self.salvar_analise)
 
-        row_btns.addStretch()
-        row_btns.addWidget(self.btn_cancelar)
-        row_btns.addWidget(self.btn_concluir)
+        # Adicionando tudo na linha (row_diag)
+        row_diag.addWidget(QLabel("Cód. Avaria:"))
+        row_diag.addWidget(self.combo_cod_avaria)
         
-        layout_form.addLayout(row_btns)
+        # O Campo descrição ganha stretch=1 para empurrar os botões para a ponta
+        row_diag.addWidget(self.txt_desc_avaria, stretch=1) 
+        
+        row_diag.addWidget(self.lbl_status_resultado)
+        
+        # Separador pequeno (opcional)
+        row_diag.addSpacing(10)
+        
+        # Botões no final da linha
+        row_diag.addWidget(self.btn_cancelar)
+        row_diag.addWidget(self.btn_concluir)
+
+        layout_form.addLayout(row_diag)
         
         layout.addWidget(card_form)
 

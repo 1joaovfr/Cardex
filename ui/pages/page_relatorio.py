@@ -146,10 +146,40 @@ class PageRelatorio(QWidget):
 
         # --- DADOS (Simulação) ---
         self.colunas = [
-            "Data Recebimento", "Data Análise", "Cód. Produto", "Grupo Estoque", "Valor Produto", 
-            "Ressarcimento", "Cód. Análise", "Cód. Avaría", "Desc. Avaría", "Status", "Num. Série", "Origem", "Forncedor"
+            # --- BLOCO 1: O Veredito e Identificação do Caso (Fixo à Esquerda) ---
+            "Status",             # Procedente ou Improcedente (O mais importante)
+            "Cód. Análise",       # O ID único do produto/processo
+            "Recebimento",   # Para controlar o SLA (atrasos)
+
+            # --- BLOCO 2: Quem enviou (O Cliente) ---
+            "Cód. Cliente",       # Identificação rápida
+            "Razão Social",       # O NOME do cliente (Vital para leitura humana)
+            "Estado",             # UF (Ajuda a diferenciar clientes homônimos)
+            "Nota Fiscal",        # O documento de entrada
+
+            # --- BLOCO 3: A Peça e o Defeito (Técnico) ---
+            "Produto",            
+            "Num. Série",         # Identidade única da peça
+            "Cód. Avaría",        # Código curto do defeito
+            "Desc. Avaría",       # Explicação detalhada (pode ser longa)
+            "Análise",       # Quando o técnico deu o veredito
+
+            # --- BLOCO 4: Valores (Impacto Financeiro) ---
+            "Valor",              # Valor da peça
+            "Ressarcimento",      # Custo Extra (Mão de obra/Frete) - Agora ao lado do Valor!
+            
+            # --- BLOCO 5: Dados de Contexto (Menos acessados / Dock Lateral) ---
+            "Empresa",            # Código de 3 dígitos da sua filial (menos relevante na grid)
+            "Emissão",       # Data da NF do cliente
+            "CNPJ",               # Dado cadastral
+            "Grupo",      # Segmentação
+            "Cidade",             # Já temos o Estado na visão principal
+            "Região",             
+            "Linha",      
+            "Origem",             # Só importa se for revenda
+            "Fornecedor"          # Só importa se for revenda
         ]
-        
+
         self.todos_dados = []
         for i in range(1, 1001):
             linha = [f"{i:04d}", f"P{i*5}", f"Peça Genérica {i}", "Bosch", "Distribuidora X",
@@ -177,8 +207,6 @@ class PageRelatorio(QWidget):
         header = self.table.horizontalHeader()
         header.setSectionResizeMode(QHeaderView.Interactive)
         header.setDefaultSectionSize(120)
-        self.table.setColumnWidth(0, 60)
-        self.table.setColumnWidth(2, 300)
 
         layout.addWidget(self.table)
 

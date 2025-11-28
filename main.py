@@ -16,6 +16,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("Sistema Integrado de Gestão - Cardex")
         self.resize(1280, 800)
+        self.setStyleSheet("QMainWindow { background-color: #12161f; }")
 
         # --- CONFIGURAÇÕES DO MENU ---
         self.menu_expanded = True

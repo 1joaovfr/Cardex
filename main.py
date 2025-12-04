@@ -1,10 +1,13 @@
 import sys
 import qtawesome as qta
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
-                               QHBoxLayout, QPushButton, QStackedWidget, QFrame, QLabel)
+                               QHBoxLayout, QPushButton, QStackedWidget, QFrame, QLabel, QMessageBox)
 from PySide6.QtCore import Qt, QPropertyAnimation, QEasingCurve, QSize
 
-# Importa as páginas
+# --- IMPORTANTE: Importar a conexão do banco ---
+from database.connection import DatabaseConnection
+
+# Importa as páginas (Mantendo seus nomes de views)
 from views.lancamento_view import PageLancamento
 from views.analise_view import PageAnalise
 from views.relatorio_view import PageRelatorio
@@ -24,7 +27,6 @@ class MainWindow(QMainWindow):
         self.sidebar_collapsed_width = 60 
 
         # --- ESTILOS DOS BOTÕES ---
-        # Aberto: Texto visível, alinhado à esquerda
         self.style_btn_expanded = """
             QPushButton {
                 text-align: left; 
@@ -37,7 +39,6 @@ class MainWindow(QMainWindow):
             }
             QPushButton:hover { background-color: #2c3545; color: white; }
         """
-        # Fechado: Texto removido (via código), Ícone centralizado
         self.style_btn_collapsed = """
             QPushButton {
                 text-align: center; 
@@ -107,12 +108,11 @@ class MainWindow(QMainWindow):
 
         # Botão Sair
         self.btn_sair = QPushButton(" Sair")
-        self.btn_sair.setProperty("original_text", " Sair") # Salva o texto original
+        self.btn_sair.setProperty("original_text", " Sair")
         self.btn_sair.setIcon(qta.icon('fa5s.sign-out-alt', color='#e57373'))
         self.btn_sair.setIconSize(QSize(20, 20))
         self.btn_sair.clicked.connect(self.close)
         
-        # Estilos específicos para o botão sair (cores avermelhadas)
         self.style_sair_expanded = """
             QPushButton { text-align: left; padding: 12px 15px; background-color: #2c1b1b; color: #e57373; border-radius: 5px; border: 1px solid #4a2b2b; }
             QPushButton:hover { background-color: #3b2424; }
@@ -148,10 +148,7 @@ class MainWindow(QMainWindow):
 
     def create_menu_btn(self, text, icon_name):
         btn = QPushButton(text)
-        # --- O TRUQUE ESTÁ AQUI ---
-        # Salvamos o texto numa propriedade customizada para usar depois
         btn.setProperty("original_text", text) 
-        
         btn.setIcon(qta.icon(icon_name, color='#dce1e8'))
         btn.setIconSize(QSize(20, 20))
         btn.setCursor(Qt.PointingHandCursor)
@@ -164,13 +161,10 @@ class MainWindow(QMainWindow):
             # --- FECHAR ---
             width_end = self.sidebar_collapsed_width
             self.lbl_logo.hide()
-            
-            # Loop nos botões normais
             for btn in self.menu_buttons:
-                btn.setText("") # Remove o texto visualmente
-                btn.setStyleSheet(self.style_btn_collapsed) # Centraliza o ícone
+                btn.setText("")
+                btn.setStyleSheet(self.style_btn_collapsed)
             
-            # Botão Sair
             self.btn_sair.setText("")
             self.btn_sair.setStyleSheet(self.style_sair_collapsed)
             
@@ -178,25 +172,35 @@ class MainWindow(QMainWindow):
             # --- ABRIR ---
             width_end = self.sidebar_expanded_width
             self.lbl_logo.show()
-            
-            # Loop nos botões normais
             for btn in self.menu_buttons:
-                # Restaura o texto original salvo na propriedade
                 btn.setText(btn.property("original_text")) 
-                btn.setStyleSheet(self.style_btn_expanded) # Alinha à esquerda
+                btn.setStyleSheet(self.style_btn_expanded)
             
-            # Botão Sair
             self.btn_sair.setText(self.btn_sair.property("original_text"))
             self.btn_sair.setStyleSheet(self.style_sair_expanded)
 
         self.animation.setStartValue(self.sidebar.width())
         self.animation.setEndValue(width_end)
         self.animation.start()
-        
         self.menu_expanded = not self.menu_expanded
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+
+    # ----------------------------------------------------
+    # CORREÇÃO AQUI: INICIALIZAR O BANCO ANTES DA JANELA!
+    # ----------------------------------------------------
+    db = DatabaseConnection()
+    conectado = db.setup_database()
+
+    if not conectado:
+        # Mostra erro amigável se o Docker não estiver rodando
+        QMessageBox.critical(None, "Erro de Conexão", 
+            "Não foi possível conectar ao Banco de Dados.\n\n"
+            "DICA: Verifique se o Docker Desktop está aberto e se rodou 'docker compose up -d'.")
+        sys.exit(1)
+    
+    # Se o banco conectou, aí sim abrimos a janela
     window = MainWindow()
     window.showMaximized()    
     sys.exit(app.exec())

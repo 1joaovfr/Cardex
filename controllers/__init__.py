@@ -2,3 +2,4 @@ from .lancamento_controller import LancamentoController
 from .analise_controller import AnaliseController
 from .relatorio_controller import RelatorioController
 from .dashboard_controller import DashboardController
+from .retorno_controller import RetornoController

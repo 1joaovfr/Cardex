@@ -4,32 +4,89 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineE
                                QComboBox, QPushButton, QFrame, QTableWidget, QTableWidgetItem, 
                                QHeaderView, QMessageBox)
 from PySide6.QtCore import Qt
-from controllers import AnaliseController
+from database.connection import DatabaseConnection # Mantendo sua importação original
 
 # --- ESTILO ORIGINAL (MANTIDO) ---
 STYLE_SHEET = """
 QWidget { background-color: #12161f; color: #dce1e8; font-family: 'Segoe UI', sans-serif; font-size: 13px; }
+
+/* CARD PRINCIPAL */
 QFrame#FormCard { background-color: #1b212d; border-radius: 8px; border: 1px solid #2c3545; }
+
+/* INPUTS */
 QLineEdit, QComboBox { background-color: #171c26; border: 1px solid #2c3545; border-radius: 4px; padding: 6px; color: #e0e6ed; }
 QLineEdit:focus, QComboBox:focus { border: 1px solid #3a5f8a; background-color: #1a202c; }
 QLineEdit:read-only { background-color: #141820; color: #718096; border: 1px solid #252b38; }
+
+/* LABELS */
 QLabel { background-color: transparent; color: #a0aec0; font-weight: 500; }
 QLabel#SectionTitle { color: #8ab4f8; font-size: 15px; font-weight: bold; padding-bottom: 5px; border-bottom: 1px solid #2c3545; }
+
+/* STATUS LABELS */
 QLabel#StatusProcedente { color: #48bb78; font-weight: bold; background-color: #1b212d; border: 1px solid #2f855a; }
 QLabel#StatusImprocedente { color: #f56565; font-weight: bold; background-color: #1b212d; border: 1px solid #c53030; }
 QLabel#StatusNeutro { color: #a0aec0; background-color: #1b212d; border: 1px solid #2c3545; }
+
+/* TABELA */
 QTableWidget { background-color: #171c26; alternate-background-color: #202736; gridline-color: #2c3545; border: none; font-size: 13px; }
 QHeaderView::section { background-color: #283042; color: #e0e6ed; padding: 6px; border: 1px solid #2c3545; font-weight: bold; text-transform: uppercase; }
 QTableWidget::item:selected { background-color: #3a5f8a; color: white; }
-QScrollBar:horizontal, QScrollBar:vertical { background-color: #1b212d; border: none; }
-QScrollBar:horizontal { height: 12px; }
-QScrollBar:vertical   { width: 12px; }
-QScrollBar::handle:horizontal, QScrollBar::handle:vertical { background-color: #3a5f8a; border-radius: 6px; min-height: 20px; }
+
+/* SCROLLBARS */
+QScrollBar:vertical { background: #171c26; width: 8px; margin: 0px; }
+QScrollBar::handle:vertical { background-color: #3a5f8a; min-height: 30px; border-radius: 4px; }
+QScrollBar::handle:vertical:hover { background-color: #4b7bc0; }
+QScrollBar:horizontal { background: #171c26; height: 8px; margin: 0px; }
+QScrollBar::handle:horizontal { background-color: #3a5f8a; min-width: 30px; border-radius: 4px; }
+QScrollBar::handle:horizontal:hover { background-color: #4b7bc0; }
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical, 
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { width: 0px; height: 0px; background: none; }
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical,
+QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal { background: none; }
+
+/* BOTÕES */
 QPushButton#btn_primary { background-color: #2e7d32; color: white; border: 1px solid #1b5e20; padding: 8px 20px; border-radius: 4px; font-weight: bold; }
 QPushButton#btn_primary:hover { background-color: #388e3c; }
 QPushButton#btn_secondary { background-color: #1b212d; color: #a0aec0; border: 1px solid #2c3e50; padding: 8px 20px; border-radius: 4px; }
 QPushButton#btn_secondary:hover { background-color: #2c3545; color: white; }
 """
+
+class AnaliseController:
+    def __init__(self):
+        self.db = DatabaseConnection()
+
+    def listar_pendentes(self):
+        # NOTA: Adicionei campos vazios ou mapeados conforme sua necessidade
+        # Caso tenha uma coluna 'valor_ressarcimento' no banco, adicione ao SQL
+        sql = """
+            SELECT i.id, nf.numero_nota, i.codigo_produto, p.descricao, 
+                   to_char(nf.data_lancamento, 'DD/MM/YYYY') as data_fmt, i.codigo_analise
+            FROM ItensGarantia i
+            JOIN NotasFiscais nf ON i.id_nota_fiscal = nf.id
+            LEFT JOIN Produtos p ON i.codigo_produto = p.codigo_item
+            WHERE i.status = 'Pendente'
+            ORDER BY nf.data_lancamento ASC
+        """
+        return self.db.execute_query(sql, fetch=True)
+
+    def get_codigos_avaria(self):
+        return self.db.execute_query("SELECT * FROM CodigosAvaria", fetch=True)
+
+    def salvar_analise(self, id_item, dados):
+        sql = """
+            UPDATE ItensGarantia
+            SET numero_serie = %s, produzido_revenda = %s, fornecedor = %s,
+                codigo_avaria = %s, descricao_avaria = %s, status = %s,
+                procedente_improcedente = %s
+            WHERE id = %s
+        """
+        self.db.execute_query(sql, (
+            dados['serie'], dados['origem'], dados['fornecedor'],
+            dados['cod_avaria'], dados['desc_avaria'],
+            dados['status_resultado'], dados['status_resultado'],
+            id_item
+        ))
+
 
 class PageAnalise(QWidget):
     def __init__(self):
@@ -40,7 +97,6 @@ class PageAnalise(QWidget):
         self.setWindowTitle("Análise Técnica de Itens")
         self.setStyleSheet(STYLE_SHEET)
 
-        # Mock Códigos Avaria (Idealmente viria do banco, mas mantive sua estrutura original)
         self.codigos_avaria = {
             "001": {"desc": "Dano Físico / Quebra", "status": "Improcedente"},
             "002": {"desc": "Defeito de Fabricação", "status": "Procedente"},
@@ -62,9 +118,12 @@ class PageAnalise(QWidget):
         layout_tabela.addWidget(lbl_lista)
 
         self.table = QTableWidget()
-        colunas = ["ID", "Nota Fiscal", "Cód. Peça", "Descrição", "Data Entrada"]
+        
+        # --- ALTERAÇÃO 1: Colunas Solicitadas ---
+        colunas = ["ENTRADA", "ITEM", "CÓD. ANÁLISE", "NOTA FISCAL", "RESSARCIMENTO"]
         self.table.setColumnCount(len(colunas))
         self.table.setHorizontalHeaderLabels(colunas)
+        
         self.table.verticalHeader().setVisible(False)
         self.table.setAlternatingRowColors(True)
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
@@ -72,9 +131,8 @@ class PageAnalise(QWidget):
         self.table.setShowGrid(True) 
         
         header = self.table.horizontalHeader()
+        # --- ALTERAÇÃO 2: Todas as colunas com mesmo tamanho (Stretch) ---
         header.setSectionResizeMode(QHeaderView.Stretch)
-        header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
         
         self.table.itemClicked.connect(self.carregar_item_para_analise)
 
@@ -160,7 +218,13 @@ class PageAnalise(QWidget):
         self.carregar_dados_tabela()
         self.bloquear_form(True)
 
-    # --- LÓGICA ATUALIZADA ---
+    def criar_item_tabela(self, texto):
+        """Helper para criar item centralizado"""
+        item = QTableWidgetItem(str(texto) if texto else "")
+        # --- ALTERAÇÃO 3: Alinhamento ao Centro ---
+        item.setTextAlignment(Qt.AlignCenter)
+        return item
+
     def carregar_dados_tabela(self):
         # Busca real do banco
         itens_db = self.controller.listar_pendentes()
@@ -169,16 +233,41 @@ class PageAnalise(QWidget):
         for item in itens_db:
             row = self.table.rowCount()
             self.table.insertRow(row)
-            self.table.setItem(row, 0, QTableWidgetItem(str(item['id'])))
-            self.table.setItem(row, 1, QTableWidgetItem(item['numero_nota']))
-            self.table.setItem(row, 2, QTableWidgetItem(item['codigo_produto']))
-            self.table.setItem(row, 3, QTableWidgetItem(item['descricao'] or ""))
-            self.table.setItem(row, 4, QTableWidgetItem(item['data_fmt']))
+            
+            # 1. ENTRADA (Salvamos o ID oculto aqui)
+            val_entrada = self.criar_item_tabela(item['data_fmt'])
+            val_entrada.setData(Qt.UserRole, item['id']) 
+            self.table.setItem(row, 0, val_entrada)
+
+            # 2. ITEM
+            self.table.setItem(row, 1, self.criar_item_tabela(item['codigo_produto']))
+
+            # 3. CÓD. ANÁLISE
+            self.table.setItem(row, 2, self.criar_item_tabela(item['codigo_analise']))
+
+            # 4. NOTA FISCAL
+            self.table.setItem(row, 3, self.criar_item_tabela(item['numero_nota']))
+
+            # 5. RESSARCIMENTO (Com proteção contra erro e formatação)
+            # O .get() evita o KeyError se a coluna não vier do banco
+            valor_raw = item.get('ressarcimento') 
+            
+            if valor_raw is not None:
+                # Formata float 100.5 para string "100,50"
+                valor_fmt = f"{float(valor_raw):.2f}".replace('.', ',')
+            else:
+                valor_fmt = "0,00"
+
+            self.table.setItem(row, 4, self.criar_item_tabela(valor_fmt))
 
     def carregar_item_para_analise(self, item):
         row = item.row()
-        id_item = self.table.item(row, 0).text()
-        desc_item = self.table.item(row, 3).text()
+        
+        # Recupera o ID oculto na coluna 0 (ENTRADA)
+        id_item = str(self.table.item(row, 0).data(Qt.UserRole))
+        
+        # Recupera a descrição na coluna 1 (ITEM)
+        desc_item = self.table.item(row, 1).text()
 
         self.bloquear_form(False)
         self.item_atual = id_item

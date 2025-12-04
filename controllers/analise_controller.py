@@ -5,9 +5,12 @@ class AnaliseController:
         self.db = DatabaseConnection()
 
     def listar_pendentes(self):
+        # CORREÇÃO: Adicionado 'i.ressarcimento' no final do SELECT
         sql = """
             SELECT i.id, nf.numero_nota, i.codigo_produto, p.descricao, 
-                   to_char(nf.data_lancamento, 'DD/MM/YYYY') as data_fmt, i.codigo_analise
+                   to_char(nf.data_lancamento, 'DD/MM/YYYY') as data_fmt, 
+                   i.codigo_analise,
+                   i.ressarcimento
             FROM ItensGarantia i
             JOIN NotasFiscais nf ON i.id_nota_fiscal = nf.id
             LEFT JOIN Produtos p ON i.codigo_produto = p.codigo_item

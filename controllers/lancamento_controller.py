@@ -10,13 +10,26 @@ class LancamentoController:
         query = "SELECT cliente FROM Clientes WHERE cnpj = %s"
         result = self.db.execute_query(query, (cnpj,), fetch=True)
         return result[0]['cliente'] if result else None
+    
+    def buscar_produto_por_codigo(self, codigo):
+        query = "SELECT codigo_item FROM Produtos WHERE codigo_item = %s"
+        result = self.db.execute_query(query, (codigo,), fetch=True)
+        return True if result else False
 
     def salvar_nota_entrada(self, dados_nota, lista_itens):
+        # 1. Validação prévia
+        cliente_existente = self.buscar_cliente_por_cnpj(dados_nota['cnpj'])
+        
+        if not cliente_existente:
+            raise Exception(f"Erro de Validação:\n\nO CNPJ {dados_nota['cnpj']} não está cadastrado no sistema.\nPor favor, realize o cadastro do cliente antes de lançar a nota.")
+
         cnpj_limpo = ''.join(filter(str.isdigit, dados_nota['cnpj']))
         
         with self.db.get_connection() as conn:
             with conn.cursor() as cursor:
-                # 1. Inserir Nota
+                # -----------------------------------------------------------
+                # 1. Inserir Nota Fiscal
+                # -----------------------------------------------------------
                 sql_nf = """
                     INSERT INTO NotasFiscais (numero_nota, data_nota, cnpj_cliente, data_lancamento)
                     VALUES (%s, %s, %s, %s) RETURNING id
@@ -29,23 +42,49 @@ class LancamentoController:
                 ))
                 id_nota = cursor.fetchone()[0]
 
-                # 2. Inserir Itens (EXPLOSÃO DE ITENS)
+                # -----------------------------------------------------------
+                # 2. Preparação para o Código de Análise (A0001...)
+                # -----------------------------------------------------------
+                data_atual = datetime.now()
+                mes_atual = data_atual.month  # Retorna int (1 a 12)
+                
+                # Lógica: ASCII 'A' é 65. 
+                # Se mês 1: 65 + 1 - 1 = 65 ('A')
+                # Se mês 12: 65 + 12 - 1 = 76 ('L')
+                letra_mes = chr(ord('A') + mes_atual - 1)
+
+                # Busca o MAIOR código existente que começa com essa letra para continuar a sequência
+                # Exemplo: Se existir A0005, retorna A0005. Se não existir, retorna None.
+                sql_seq = "SELECT MAX(codigo_analise) FROM ItensGarantia WHERE codigo_analise LIKE %s"
+                cursor.execute(sql_seq, (f"{letra_mes}%",))
+                resultado = cursor.fetchone()
+                
+                ultimo_codigo = resultado[0] if resultado else None
+                
+                if ultimo_codigo:
+                    # Se achou "A0005", pega o "0005", vira int 5 e soma 1 -> 6
+                    sequencial_atual = int(ultimo_codigo[1:]) + 1
+                else:
+                    # Se é a primeira peça do mês
+                    sequencial_atual = 1
+
+                # -----------------------------------------------------------
+                # 3. Inserir Itens (Com loop do sequencial)
+                # -----------------------------------------------------------
                 sql_item = """
                     INSERT INTO ItensGarantia 
                     (id_nota_fiscal, codigo_produto, valor_item, ressarcimento, codigo_analise, status)
                     VALUES (%s, %s, %s, %s, %s, 'Pendente')
                 """
                 
-                ano_mes = datetime.now().strftime("%Y%m")
-                
                 for item in lista_itens:
                     qtd = int(item['qtd'])
-                    # Loop para criar uma linha por unidade
+                    
+                    # Loop para criar uma linha por unidade (Explosão de itens)
                     for i in range(qtd):
-                        # Gera código sequencial fake (em prod usar Sequence)
-                        cursor.execute("SELECT count(*) + 1 FROM ItensGarantia") 
-                        prox_id = cursor.fetchone()[0]
-                        cod_analise = f"{ano_mes}-{prox_id}"
+                        # Formata o código: Letra + numero com 4 casas preenchidas com zero
+                        # Ex: A + 0001 = A0001
+                        cod_analise = f"{letra_mes}{sequencial_atual:04d}"
 
                         cursor.execute(sql_item, (
                             id_nota,
@@ -54,5 +93,9 @@ class LancamentoController:
                             item['ressarcimento'],
                             cod_analise
                         ))
+                        
+                        # Incrementa para a próxima volta do loop (A0002, A0003...)
+                        sequencial_atual += 1
+
             conn.commit()
         return True

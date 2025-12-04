@@ -254,13 +254,32 @@ class PageLancamento(QWidget):
             self.spin_vlr_ressarc.setValue(0.0)
 
     def adicionar_item_tabela(self):
-        codigo = self.txt_cod_item.text()
+        codigo = self.txt_cod_item.text().strip() # .strip() remove espaços acidentais
+        
+        # 1. Validação se está vazio (já existia)
         if not codigo:
             QMessageBox.warning(self, "Aviso", "Preencha o código do item.")
             return
 
+        # --- NOVA VALIDAÇÃO: CHECAR NO BANCO ---
+        # Verifica se o produto existe no banco
+        existe = self.controller.buscar_produto_por_codigo(codigo)
+        
+        if not existe:
+            QMessageBox.warning(
+                self, 
+                "Item Não Encontrado", 
+                f"O código '{codigo}' não está cadastrado no sistema.\n\nVerifique se digitou corretamente ou cadastre o produto antes de lançar."
+            )
+            self.txt_cod_item.selectAll() # Seleciona o texto para facilitar a correção
+            self.txt_cod_item.setFocus()
+            return # Interrompe a função aqui, não adiciona na tabela
+        # ---------------------------------------
+
         qtd = self.spin_qtd.value()
         vlr_unit = self.spin_valor.value()
+        
+        # ... (O restante do código continua exatamente igual abaixo)
         total = qtd * vlr_unit
         
         tem_ressarc = self.chk_ressarcimento.isChecked()

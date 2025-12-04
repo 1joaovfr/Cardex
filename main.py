@@ -7,7 +7,7 @@ from PySide6.QtCore import Qt, QPropertyAnimation, QEasingCurve, QSize
 # --- IMPORTANTE: Importar a conexão do banco ---
 from database.connection import DatabaseConnection
 
-# Importa as páginas (Mantendo seus nomes de views)
+# Importa as páginas
 from views.lancamento_view import PageLancamento
 from views.analise_view import PageAnalise
 from views.relatorio_view import PageRelatorio
@@ -132,6 +132,12 @@ class MainWindow(QMainWindow):
         self.pages.addWidget(PageRelatorio())  
         self.pages.addWidget(PageRetorno())   
 
+        # =================================================================
+        # ALTERAÇÃO 1: Conectar o sinal de mudança de página
+        # =================================================================
+        self.pages.currentChanged.connect(self.on_page_change)
+        # =================================================================
+
         self.btn_dash.clicked.connect(lambda: self.pages.setCurrentIndex(0))
         self.btn_lanc.clicked.connect(lambda: self.pages.setCurrentIndex(1))
         self.btn_ana.clicked.connect(lambda: self.pages.setCurrentIndex(2))
@@ -184,23 +190,47 @@ class MainWindow(QMainWindow):
         self.animation.start()
         self.menu_expanded = not self.menu_expanded
 
+    # =================================================================
+    # ALTERAÇÃO 2: Método para atualizar as tabelas ao trocar de tela
+    # =================================================================
+    def on_page_change(self, index):
+        """
+        Chamado automaticamente pelo QStackedWidget quando a página muda.
+        Verifica se a página atual precisa de refresh de dados.
+        """
+        widget_atual = self.pages.widget(index)
+
+        # Se mudou para a tela de Análise
+        if isinstance(widget_atual, PageAnalise):
+            widget_atual.carregar_dados_tabela()
+            
+            # (Opcional) Limpa o formulário para garantir que não haja dados antigos na tela
+            widget_atual.bloquear_form(True)
+            widget_atual.txt_id_item.clear()
+            widget_atual.txt_peca_nome.clear()
+            widget_atual.txt_desc_avaria.clear()
+            widget_atual.lbl_status_resultado.setText("AGUARDANDO")
+            # Restaura o estilo do label de status para neutro
+            widget_atual.lbl_status_resultado.setObjectName("StatusNeutro")
+            widget_atual.lbl_status_resultado.style().unpolish(widget_atual.lbl_status_resultado)
+            widget_atual.lbl_status_resultado.style().polish(widget_atual.lbl_status_resultado)
+
+        # Se mudou para a tela de Relatório
+        elif isinstance(widget_atual, PageRelatorio):
+            widget_atual.carregar_dados()
+
 if __name__ == "__main__":
     app = QApplication(sys.argv)
 
-    # ----------------------------------------------------
-    # CORREÇÃO AQUI: INICIALIZAR O BANCO ANTES DA JANELA!
-    # ----------------------------------------------------
     db = DatabaseConnection()
     conectado = db.setup_database()
 
     if not conectado:
-        # Mostra erro amigável se o Docker não estiver rodando
         QMessageBox.critical(None, "Erro de Conexão", 
             "Não foi possível conectar ao Banco de Dados.\n\n"
             "DICA: Verifique se o Docker Desktop está aberto e se rodou 'docker compose up -d'.")
         sys.exit(1)
     
-    # Se o banco conectou, aí sim abrimos a janela
     window = MainWindow()
     window.showMaximized()    
     sys.exit(app.exec())

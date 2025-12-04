@@ -97,7 +97,7 @@ class DatabaseSeeder:
                     num_nota = f"{random.randint(1000, 99999)}"
                     cnpj = random.choice(cnjps)
                     # Data aleatória nos últimos 60 dias
-                    dias_atras = random.randint(0, 60)
+                    dias_atras = random.randint(0, 365)
                     data_lanc = datetime.now() - timedelta(days=dias_atras)
                     data_nota = data_lanc - timedelta(days=random.randint(1, 10))
                     

@@ -5,6 +5,7 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineE
                                QHeaderView, QMessageBox)
 from PySide6.QtCore import Qt
 from database.connection import DatabaseConnection # Mantendo sua importação original
+from controllers import AnaliseController
 
 # --- ESTILO ORIGINAL (MANTIDO) ---
 STYLE_SHEET = """
@@ -50,43 +51,6 @@ QPushButton#btn_primary:hover { background-color: #388e3c; }
 QPushButton#btn_secondary { background-color: #1b212d; color: #a0aec0; border: 1px solid #2c3e50; padding: 8px 20px; border-radius: 4px; }
 QPushButton#btn_secondary:hover { background-color: #2c3545; color: white; }
 """
-
-class AnaliseController:
-    def __init__(self):
-        self.db = DatabaseConnection()
-
-    def listar_pendentes(self):
-        # NOTA: Adicionei campos vazios ou mapeados conforme sua necessidade
-        # Caso tenha uma coluna 'valor_ressarcimento' no banco, adicione ao SQL
-        sql = """
-            SELECT i.id, nf.numero_nota, i.codigo_produto, p.descricao, 
-                   to_char(nf.data_lancamento, 'DD/MM/YYYY') as data_fmt, i.codigo_analise
-            FROM ItensGarantia i
-            JOIN NotasFiscais nf ON i.id_nota_fiscal = nf.id
-            LEFT JOIN Produtos p ON i.codigo_produto = p.codigo_item
-            WHERE i.status = 'Pendente'
-            ORDER BY nf.data_lancamento ASC
-        """
-        return self.db.execute_query(sql, fetch=True)
-
-    def get_codigos_avaria(self):
-        return self.db.execute_query("SELECT * FROM CodigosAvaria", fetch=True)
-
-    def salvar_analise(self, id_item, dados):
-        sql = """
-            UPDATE ItensGarantia
-            SET numero_serie = %s, produzido_revenda = %s, fornecedor = %s,
-                codigo_avaria = %s, descricao_avaria = %s, status = %s,
-                procedente_improcedente = %s
-            WHERE id = %s
-        """
-        self.db.execute_query(sql, (
-            dados['serie'], dados['origem'], dados['fornecedor'],
-            dados['cod_avaria'], dados['desc_avaria'],
-            dados['status_resultado'], dados['status_resultado'],
-            id_item
-        ))
-
 
 class PageAnalise(QWidget):
     def __init__(self):

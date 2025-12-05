@@ -7,34 +7,56 @@ class DatabaseSeeder:
         self.db = DatabaseConnection()
         
     def limpar_banco(self):
-        """Limpa dados antigos para evitar duplicidade (Opcional)"""
-        print("Limpando tabelas antigas...")
-        cmds = [
-            "TRUNCATE TABLE ItensGarantia RESTART IDENTITY CASCADE;",
-            "TRUNCATE TABLE NotasFiscais RESTART IDENTITY CASCADE;",
-            "TRUNCATE TABLE Produtos RESTART IDENTITY CASCADE;",
-            "TRUNCATE TABLE Clientes RESTART IDENTITY CASCADE;",
-            "TRUNCATE TABLE CodigosAvaria RESTART IDENTITY CASCADE;"
+        """
+        Apaga as tabelas antigas e recria a estrutura nova.
+        Isso garante que novas colunas (como 'grupo' e 'regiao') sejam criadas.
+        """
+        print("Recriando estrutura do banco de dados...")
+        
+        # 1. DROP: Apaga as tabelas existentes (Cuidado: apaga todos os dados!)
+        cmds_drop = [
+            "DROP TABLE IF EXISTS itens_notas CASCADE;",
+            "DROP TABLE IF EXISTS notas_fiscais CASCADE;", # Se sua tabela chama notas_fiscais, ajuste aqui
+            "DROP TABLE IF EXISTS itens CASCADE;",
+            "DROP TABLE IF EXISTS clientes CASCADE;",
+            "DROP TABLE IF EXISTS avarias CASCADE;",
         ]
+        
         with self.db.get_connection() as conn:
             with conn.cursor() as cursor:
-                for cmd in cmds:
+                for cmd in cmds_drop:
                     try:
                         cursor.execute(cmd)
                     except Exception as e:
-                        print(f"Aviso ao limpar (pode ser a primeira vez): {e}")
+                        print(f"Aviso ao dropar tabela: {e}")
                 conn.commit()
 
+        # 2. RECRIAR: Chama o método setup_database da sua classe de conexão
+        # Isso vai rodar os CREATE TABLE novos que você definiu no Passo 1
+        sucesso = self.db.setup_database()
+        
+        if sucesso:
+            print("✅ Tabelas recriadas com a nova estrutura!")
+        else:
+            print("❌ Erro ao recriar tabelas. Verifique o console.")
+            raise Exception("Falha ao recriar schema do banco.")
+        
     def seed_clientes(self):
-        print("Gerando Clientes...")
+        print("Gerando clientes...")
+        # Adicionei 'Grupo' e 'Região' aos dados
         clientes = [
-            ("12345678000199", "AUTO PEÇAS SILVA", "São Paulo", "SP"),
-            ("98765432000155", "OFICINA DO ZÉ", "Rio de Janeiro", "RJ"),
-            ("11222333000188", "DISTRIBUIDORA NORTE", "Manaus", "AM"),
-            ("44555666000177", "SUL PEÇAS LTDA", "Porto Alegre", "RS"),
-            ("99888777000122", "CENTRO AUTOMOTIVO MINAS", "Belo Horizonte", "MG"),
+            ("12345678000199", "AUTO PEÇAS SILVA", "Varejo", "São Paulo", "SP", "Sudeste"),
+            ("98765432000155", "OFICINA DO ZÉ", "Oficina", "Rio de Janeiro", "RJ", "Sudeste"),
+            ("11222333000188", "DISTRIBUIDORA NORTE", "Distribuidor", "Manaus", "AM", "Norte"),
+            ("44555666000177", "SUL PEÇAS LTDA", "Varejo", "Porto Alegre", "RS", "Sul"),
+            ("99888777000122", "CENTRO AUTO MINAS", "Oficina", "Belo Horizonte", "MG", "Sudeste"),
         ]
-        sql = "INSERT INTO Clientes (cnpj, cliente, cidade, estado) VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING"
+        # Query atualizada para a tabela clientes
+        sql = """
+            INSERT INTO clientes (cnpj, cliente, grupo, cidade, estado, regiao) 
+            VALUES (%s, %s, %s, %s, %s, %s) 
+            ON CONFLICT DO NOTHING
+        """
         
         with self.db.get_connection() as conn:
             with conn.cursor() as cursor:
@@ -42,8 +64,9 @@ class DatabaseSeeder:
                     cursor.execute(sql, c)
             conn.commit()
             
-    def seed_produtos(self):
-        print("Gerando Produtos...")
+    def seed_itens(self):
+        print("Gerando itens...")
+        # Atualizado para tabela itens
         produtos = [
             ("P001", "Bomba de Combustível", "Motor"),
             ("P002", "Pastilha de Freio Diant.", "Freios"),
@@ -54,7 +77,11 @@ class DatabaseSeeder:
             ("P007", "Radiador", "Arrefecimento"),
             ("P008", "Vela de Ignição", "Ignição"),
         ]
-        sql = "INSERT INTO Produtos (codigo_item, descricao, grupo_estoque) VALUES (%s, %s, %s) ON CONFLICT DO NOTHING"
+        sql = """
+            INSERT INTO itens (codigo_item, descricao_item, grupo_item) 
+            VALUES (%s, %s, %s) 
+            ON CONFLICT DO NOTHING
+        """
         
         with self.db.get_connection() as conn:
             with conn.cursor() as cursor:
@@ -63,7 +90,8 @@ class DatabaseSeeder:
             conn.commit()
 
     def seed_avarias(self):
-        print("Gerando Códigos de Avaria...")
+        print("Gerando avarias...")
+        # Atualizado para tabela avarias
         avarias = [
             ("001", "Quebra Física / Mau Uso", "Improcedente"),
             ("002", "Defeito de Fabricação (Vazamento)", "Procedente"),
@@ -72,7 +100,11 @@ class DatabaseSeeder:
             ("005", "Desgaste Natural", "Improcedente"),
             ("006", "Falha Elétrica Interna", "Procedente"),
         ]
-        sql = "INSERT INTO CodigosAvaria (codigo_avaria, descricao_tecnica, status_padrao) VALUES (%s, %s, %s) ON CONFLICT DO NOTHING"
+        sql = """
+            INSERT INTO avarias (codigo_avaria, descricao_avaria, status_avaria) 
+            VALUES (%s, %s, %s) 
+            ON CONFLICT DO NOTHING
+        """
         
         with self.db.get_connection() as conn:
             with conn.cursor() as cursor:
@@ -81,48 +113,66 @@ class DatabaseSeeder:
             conn.commit()
 
     def seed_movimentacao(self, qtd_notas=20):
-        print(f"Gerando {qtd_notas} Notas Fiscais com Itens...")
+        print(f"Gerando {qtd_notas} notas_fiscais com Lançamentos...")
         
-        # Recuperar dados base para gerar relacionamentos válidos
-        clientes = self.db.execute_query("SELECT cnpj FROM Clientes", fetch=True)
-        produtos = self.db.execute_query("SELECT * FROM Produtos", fetch=True)
-        avarias = self.db.execute_query("SELECT * FROM CodigosAvaria", fetch=True)
+        # Recupera dados usando os NOMES NOVOS das tabelas
+        clientes = self.db.execute_query("SELECT cnpj FROM clientes", fetch=True)
+        itens = self.db.execute_query("SELECT * FROM itens", fetch=True)
+        avarias = self.db.execute_query("SELECT * FROM avarias", fetch=True)
         
+        if not clientes or not itens or not avarias:
+            print("Erro: Tabelas base vazias. Rode os seeds anteriores primeiro.")
+            return
+
         cnjps = [c['cnpj'] for c in clientes]
+        sequencia_por_letra = {}
         
         with self.db.get_connection() as conn:
             with conn.cursor() as cursor:
                 for i in range(qtd_notas):
-                    # 1. Criar Nota
+                    # 1. CRIAR NOTA (Tabela notas_fiscais)
                     num_nota = f"{random.randint(1000, 99999)}"
                     cnpj = random.choice(cnjps)
-                    # Data aleatória nos últimos 60 dias
+                    
+                    # Datas
                     dias_atras = random.randint(0, 365)
                     data_lanc = datetime.now() - timedelta(days=dias_atras)
-                    data_nota = data_lanc - timedelta(days=random.randint(1, 10))
+                    data_receb = data_lanc - timedelta(days=random.randint(0, 2)) # Recebido 0-2 dias antes do lançamento
+                    data_nota = data_receb - timedelta(days=random.randint(1, 10)) # Nota emitida 1-10 dias antes de chegar
                     
                     sql_nf = """
-                        INSERT INTO NotasFiscais (numero_nota, data_nota, cnpj_cliente, data_lancamento)
-                        VALUES (%s, %s, %s, %s) RETURNING id
+                        INSERT INTO notas_fiscais (numero_nota, data_nota, cnpj_cliente, data_recebimento, data_lancamento)
+                        VALUES (%s, %s, %s, %s, %s) RETURNING id
                     """
-                    cursor.execute(sql_nf, (num_nota, data_nota.date(), cnpj, data_lanc.date()))
+                    cursor.execute(sql_nf, (num_nota, data_nota.date(), cnpj, data_receb.date(), data_lanc.date()))
                     id_nota = cursor.fetchone()[0]
                     
-                    # 2. Criar Itens para essa nota (1 a 5 itens)
+                    # Lógica da Letra (Janeiro=A, Fevereiro=B...)
+                    mes_lancamento = data_lanc.month
+                    letra_mes = chr(ord('A') + mes_lancamento - 1)
+
+                    # 2. CRIAR LANÇAMENTOS (Tabela itens_notas)
                     qtd_itens = random.randint(1, 5)
+                    
                     for _ in range(qtd_itens):
-                        prod = random.choice(produtos)
+                        item = random.choice(itens)
                         valor = round(random.uniform(50.0, 500.0), 2)
+                        
                         ressarc = 0.0
-                        if random.random() > 0.8: # 20% chance de ter ressarcimento
+                        if random.random() > 0.8: 
                             ressarc = round(random.uniform(10.0, 50.0), 2)
                         
-                        # Definir Status Aleatório
                         status_choice = random.choice(['Pendente', 'Pendente', 'Procedente', 'Improcedente'])
                         
-                        cod_analise = f"{data_lanc.strftime('%Y%m')}-{random.randint(10000, 99999)}"
+                        # GERAÇÃO DO CÓDIGO DE ANÁLISE (A0001, A0002...)
+                        if letra_mes not in sequencia_por_letra:
+                            sequencia_por_letra[letra_mes] = 0
                         
-                        # Se não for pendente, precisa de laudo
+                        sequencia_por_letra[letra_mes] += 1
+                        seq_atual = sequencia_por_letra[letra_mes]
+                        cod_analise = f"{letra_mes}{seq_atual:04d}"
+                        
+                        # Dados da Avaria
                         cod_avaria = None
                         desc_avaria = None
                         proc_imp = None
@@ -133,22 +183,22 @@ class DatabaseSeeder:
                         if status_choice != 'Pendente':
                             avaria = random.choice(avarias)
                             cod_avaria = avaria['codigo_avaria']
-                            desc_avaria = f"Análise técnica: {avaria['descricao_tecnica']}"
-                            proc_imp = status_choice # Procedente ou Improcedente
+                            desc_avaria = avaria['descricao_avaria'] # Coluna nova
+                            proc_imp = status_choice 
                             serie = f"SN{random.randint(100000, 999999)}"
                             origem = random.choice(['Produzido', 'Revenda'])
                             if origem == 'Revenda':
                                 forn = "Fabricante Original X"
 
-                        sql_item = """
-                            INSERT INTO ItensGarantia 
-                            (id_nota_fiscal, codigo_produto, valor_item, ressarcimento, status, 
+                        sql_lanc = """
+                            INSERT INTO itens_notas 
+                            (id_nota_fiscal, codigo_item, valor_item, ressarcimento, status, 
                              codigo_analise, numero_serie, codigo_avaria, descricao_avaria,
                              procedente_improcedente, produzido_revenda, fornecedor)
                             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                         """
-                        cursor.execute(sql_item, (
-                            id_nota, prod['codigo_item'], valor, ressarc, status_choice,
+                        cursor.execute(sql_lanc, (
+                            id_nota, item['codigo_item'], valor, ressarc, status_choice,
                             cod_analise, serie, cod_avaria, desc_avaria,
                             proc_imp, origem, forn
                         ))
@@ -159,13 +209,14 @@ class DatabaseSeeder:
         try:
             self.limpar_banco()
             self.seed_clientes()
-            self.seed_produtos()
+            self.seed_itens()
             self.seed_avarias()
-            self.seed_movimentacao(qtd_notas=30) # Gera 30 notas
-            print("\n✅ Banco de dados populado com sucesso!")
-            print("Agora você pode rodar 'python main.py' e ver os dados no Dashboard e Relatórios.")
+            self.seed_movimentacao(qtd_notas=100) 
+            print("\n✅ Banco de dados populado com sucesso (Novo Schema)!")
         except Exception as e:
             print(f"\n❌ Erro ao popular banco: {e}")
+            import traceback
+            traceback.print_exc()
 
 if __name__ == "__main__":
     seeder = DatabaseSeeder()

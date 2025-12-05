@@ -32,44 +32,49 @@ class DatabaseConnection:
     def setup_database(self):
         """Cria as tabelas se não existirem"""
         queries = [
-            '''CREATE TABLE IF NOT EXISTS Clientes (
+            '''CREATE TABLE IF NOT EXISTS clientes (
                 cnpj TEXT PRIMARY KEY,
                 cliente TEXT,
-                cidade TEXT, estado TEXT
+                grupo TEXT,
+                cidade TEXT, 
+                estado TEXT, 
+                regiao TEXT
             )''',
-            '''CREATE TABLE IF NOT EXISTS Produtos (
+            '''CREATE TABLE IF NOT EXISTS itens (
                 codigo_item TEXT PRIMARY KEY,
-                descricao TEXT,
-                grupo_estoque TEXT
+                descricao_item TEXT,
+                grupo_item TEXT
             )''',
-            '''CREATE TABLE IF NOT EXISTS CodigosAvaria (
+            '''CREATE TABLE IF NOT EXISTS avarias (
                 codigo_avaria TEXT PRIMARY KEY,
-                descricao_tecnica TEXT,
-                status_padrao TEXT -- Procedente/Improcedente
+                descricao_avaria TEXT,
+                status_avaria TEXT -- Procedente/Improcedente
             )''',
-            '''CREATE TABLE IF NOT EXISTS NotasFiscais (
+            '''CREATE TABLE IF NOT EXISTS notas_fiscais (
                 id SERIAL PRIMARY KEY,
                 numero_nota TEXT,
                 data_nota DATE,
                 cnpj_cliente TEXT,
+                data_recebimento DATE,
                 data_lancamento DATE,
-                FOREIGN KEY (cnpj_cliente) REFERENCES Clientes(cnpj)
+                FOREIGN KEY (cnpj_cliente) REFERENCES clientes(cnpj)
             )''',
-            '''CREATE TABLE IF NOT EXISTS ItensGarantia (
+            '''CREATE TABLE IF NOT EXISTS itens_notas (
                 id SERIAL PRIMARY KEY,
                 id_nota_fiscal INTEGER,
-                codigo_produto TEXT,
+                codigo_item TEXT,
                 valor_item REAL,
                 ressarcimento REAL,
                 status TEXT DEFAULT 'Pendente',
                 codigo_analise TEXT,
+                data_analise DATE,
                 numero_serie TEXT,
                 codigo_avaria TEXT,
                 descricao_avaria TEXT,
                 procedente_improcedente TEXT,
                 produzido_revenda TEXT,
                 fornecedor TEXT,
-                FOREIGN KEY (id_nota_fiscal) REFERENCES NotasFiscais(id)
+                FOREIGN KEY (id_nota_fiscal) REFERENCES notas_fiscais(id)
             )'''
         ]
         try:

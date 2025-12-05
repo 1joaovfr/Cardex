@@ -58,7 +58,7 @@ class PageAnalise(QWidget):
         # --- INTEGRAÇÃO CONTROLLER ---
         self.controller = AnaliseController()
         
-        self.setWindowTitle("Análise Técnica de Itens")
+        self.setWindowTitle("Análise Técnica de itens")
         self.setStyleSheet(STYLE_SHEET)
 
         self.codigos_avaria = {
@@ -77,7 +77,7 @@ class PageAnalise(QWidget):
         card_tabela = QFrame(objectName="FormCard")
         layout_tabela = QVBoxLayout(card_tabela)
         
-        lbl_lista = QLabel("Itens Aguardando Análise")
+        lbl_lista = QLabel("itens Aguardando Análise")
         lbl_lista.setObjectName("SectionTitle")
         layout_tabela.addWidget(lbl_lista)
 
@@ -113,8 +113,8 @@ class PageAnalise(QWidget):
 
         # Linha 1
         row1 = QHBoxLayout()
-        self.txt_id_item = QLineEdit(placeholderText="ID", readOnly=True)
-        self.txt_id_item.setFixedWidth(50) 
+        self.txt_id_item = QLineEdit(placeholderText="Cód. análise", readOnly=True)
+        self.txt_id_item.setFixedWidth(100) 
         
         self.txt_peca_nome = QLineEdit(placeholderText="Selecione um item...", readOnly=True)
         
@@ -127,7 +127,7 @@ class PageAnalise(QWidget):
 
         self.txt_fornecedor = QLineEdit(placeholderText="Fabricante / Distribuidor")
 
-        row1.addWidget(QLabel("ID:"))
+        row1.addWidget(QLabel("Cód.:"))
         row1.addWidget(self.txt_id_item)
         row1.addWidget(QLabel("Peça:"))
         row1.addWidget(self.txt_peca_nome, stretch=1) 
@@ -204,7 +204,7 @@ class PageAnalise(QWidget):
             self.table.setItem(row, 0, val_entrada)
 
             # 2. ITEM
-            self.table.setItem(row, 1, self.criar_item_tabela(item['codigo_produto']))
+            self.table.setItem(row, 1, self.criar_item_tabela(item['codigo_item']))
 
             # 3. CÓD. ANÁLISE
             self.table.setItem(row, 2, self.criar_item_tabela(item['codigo_analise']))
@@ -229,13 +229,15 @@ class PageAnalise(QWidget):
         
         # Recupera o ID oculto na coluna 0 (ENTRADA)
         id_item = str(self.table.item(row, 0).data(Qt.UserRole))
+
+        codigo_analise_visual = self.table.item(row, 2).text()
         
         # Recupera a descrição na coluna 1 (ITEM)
         desc_item = self.table.item(row, 1).text()
 
         self.bloquear_form(False)
         self.item_atual = id_item
-        self.txt_id_item.setText(id_item)
+        self.txt_id_item.setText(codigo_analise_visual)
         self.txt_peca_nome.setText(desc_item)
         
         self.txt_serie.clear()

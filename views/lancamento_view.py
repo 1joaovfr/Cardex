@@ -52,31 +52,39 @@ QLabel#SectionTitle {
     padding-bottom: 5px; 
     border-bottom: 1px solid #2c3545;
 }
-QTableWidget {
+/* TABELA - O SEU ESTILO ORIGINAL */
+QTableWidget { 
     background-color: #171c26; 
     alternate-background-color: #202736; 
-    gridline-color: #2c3545;
+    gridline-color: #2c3545; 
     border: none; 
-    font-size: 13px;
+    font-size: 13px; 
 }
-QHeaderView::section {
+QHeaderView::section { 
     background-color: #283042; 
-    color: #e0e6ed;
-    padding: 6px;
-    border: 1px solid #2c3545;
-    font-weight: bold;
+    color: #e0e6ed; 
+    padding: 6px; 
+    border: 1px solid #2c3545; 
+    font-weight: bold; 
     text-transform: uppercase; 
 }
-QTableWidget::item:selected {
+QTableWidget::item:selected { 
     background-color: #3a5f8a; 
-    color: white;
+    color: white; 
 }
-QScrollBar:horizontal, QScrollBar:vertical { background-color: #1b212d; border: none; }
-QScrollBar:horizontal { height: 12px; }
-QScrollBar:vertical   { width: 12px; }
-QScrollBar::handle:horizontal, QScrollBar::handle:vertical {
-    background-color: #3a5f8a; border-radius: 6px; min-height: 20px;
-}
+
+/* SCROLLBARS */
+QScrollBar:vertical { background: #171c26; width: 8px; margin: 0px; }
+QScrollBar::handle:vertical { background-color: #3a5f8a; min-height: 30px; border-radius: 4px; }
+QScrollBar::handle:vertical:hover { background-color: #4b7bc0; }
+QScrollBar:horizontal { background: #171c26; height: 8px; margin: 0px; }
+QScrollBar::handle:horizontal { background-color: #3a5f8a; min-width: 30px; border-radius: 4px; }
+QScrollBar::handle:horizontal:hover { background-color: #4b7bc0; }
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical, 
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { width: 0px; height: 0px; background: none; }
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical,
+QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal { background: none; }
+
 QCheckBox { color: #dce1e8; spacing: 8px; }
 QCheckBox::indicator { width: 18px; height: 18px; border-radius: 3px; border: 1px solid #2c3545; background: #171c26; }
 QCheckBox::indicator:checked { background-color: #3a5f8a; border: 1px solid #3a5f8a; }
@@ -133,7 +141,6 @@ class PageLancamento(QWidget):
         self.dt_emissao = QDateEdit(calendarPopup=True, date=QDate.currentDate())
         self.dt_emissao.setFixedWidth(110)
         
-        # --- NOVO CAMPO: RECEBIMENTO ---
         self.dt_recebimento = QDateEdit(calendarPopup=True, date=QDate.currentDate())
         self.dt_recebimento.setFixedWidth(110)
 
@@ -157,7 +164,7 @@ class PageLancamento(QWidget):
         card_itens = QFrame(objectName="FormCard")
         layout_itens = QVBoxLayout(card_itens)
         
-        lbl_sec_itens = QLabel("Itens da Nota")
+        lbl_sec_itens = QLabel("itens da Nota")
         lbl_sec_itens.setObjectName("SectionTitle")
         layout_itens.addWidget(lbl_sec_itens)
 
@@ -217,16 +224,15 @@ class PageLancamento(QWidget):
         self.table_itens.setSelectionBehavior(QTableWidget.SelectRows)
         self.table_itens.setEditTriggers(QTableWidget.NoEditTriggers)
         
+        # --- ALTERAÇÃO AQUI: Cabeçalhos com tamanho igual (Stretch) ---
         header = self.table_itens.horizontalHeader()
         header.setSectionResizeMode(QHeaderView.Stretch)
-        header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
+        # Removido os ResizeToContents das colunas 0 e 1 para ficar tudo igual
 
         layout_itens.addWidget(self.table_itens)
 
         # Botões Ação
         action_buttons_layout = QHBoxLayout()
-        action_buttons_layout.setContentsMargins(0, 10, 0, 0)
         
         self.btn_cancelar = QPushButton(" Cancelar")
         self.btn_cancelar.setObjectName("btn_secondary")
@@ -254,15 +260,12 @@ class PageLancamento(QWidget):
             self.spin_vlr_ressarc.setValue(0.0)
 
     def adicionar_item_tabela(self):
-        codigo = self.txt_cod_item.text().strip() # .strip() remove espaços acidentais
+        codigo = self.txt_cod_item.text().strip()
         
-        # 1. Validação se está vazio (já existia)
         if not codigo:
             QMessageBox.warning(self, "Aviso", "Preencha o código do item.")
             return
 
-        # --- NOVA VALIDAÇÃO: CHECAR NO BANCO ---
-        # Verifica se o produto existe no banco
         existe = self.controller.buscar_produto_por_codigo(codigo)
         
         if not existe:
@@ -271,15 +274,12 @@ class PageLancamento(QWidget):
                 "Item Não Encontrado", 
                 f"O código '{codigo}' não está cadastrado no sistema.\n\nVerifique se digitou corretamente ou cadastre o produto antes de lançar."
             )
-            self.txt_cod_item.selectAll() # Seleciona o texto para facilitar a correção
+            self.txt_cod_item.selectAll()
             self.txt_cod_item.setFocus()
-            return # Interrompe a função aqui, não adiciona na tabela
-        # ---------------------------------------
+            return
 
         qtd = self.spin_qtd.value()
         vlr_unit = self.spin_valor.value()
-        
-        # ... (O restante do código continua exatamente igual abaixo)
         total = qtd * vlr_unit
         
         tem_ressarc = self.chk_ressarcimento.isChecked()
@@ -288,17 +288,24 @@ class PageLancamento(QWidget):
         row = self.table_itens.rowCount()
         self.table_itens.insertRow(row)
 
-        self.table_itens.setItem(row, 0, QTableWidgetItem(codigo))
-        self.table_itens.setItem(row, 1, QTableWidgetItem(str(qtd)))
-        self.table_itens.setItem(row, 2, QTableWidgetItem(f"R$ {vlr_unit:.2f}"))
-        self.table_itens.setItem(row, 3, QTableWidgetItem(f"R$ {total:.2f}"))
+        # --- ALTERAÇÃO AQUI: Função auxiliar para centralizar ---
+        def criar_item_centro(texto):
+            item = QTableWidgetItem(str(texto))
+            item.setTextAlignment(Qt.AlignCenter)
+            return item
+
+        # Uso da função auxiliar
+        self.table_itens.setItem(row, 0, criar_item_centro(codigo))
+        self.table_itens.setItem(row, 1, criar_item_centro(qtd))
+        self.table_itens.setItem(row, 2, criar_item_centro(f"R$ {vlr_unit:.2f}"))
+        self.table_itens.setItem(row, 3, criar_item_centro(f"R$ {total:.2f}"))
         
         status_ressarc = "SIM" if tem_ressarc else "NÃO"
-        item_status = QTableWidgetItem(status_ressarc)
+        item_status = criar_item_centro(status_ressarc)
         item_status.setForeground(Qt.green if tem_ressarc else Qt.gray)
         self.table_itens.setItem(row, 4, item_status)
         
-        self.table_itens.setItem(row, 5, QTableWidgetItem(f"R$ {vlr_ressarc:.2f}"))
+        self.table_itens.setItem(row, 5, criar_item_centro(f"R$ {vlr_ressarc:.2f}"))
 
         self.txt_cod_item.clear()
         self.spin_qtd.setValue(1)
@@ -307,9 +314,8 @@ class PageLancamento(QWidget):
         self.txt_cod_item.setFocus()
 
     def buscar_emitente(self):
-        # Lógica conectada ao controller
         cnpj_sujo = self.txt_cnpj.text()
-        if len(cnpj_sujo) >= 14: # Simples verificação visual
+        if len(cnpj_sujo) >= 14:
             nome = self.controller.buscar_cliente_por_cnpj(cnpj_sujo)
             if nome:
                 self.txt_emitente.setText(nome)
@@ -322,7 +328,6 @@ class PageLancamento(QWidget):
             QMessageBox.warning(self, "Erro", "Adicione pelo menos um item à nota.")
             return
             
-        # Preparar dados para o controller
         dados_nota = {
             'cnpj': self.txt_cnpj.text(),
             'numero': self.txt_num_nf.text(),
@@ -332,7 +337,6 @@ class PageLancamento(QWidget):
         
         lista_itens = []
         for row in range(qtd_itens):
-            # Extrair valores limpos da tabela
             lista_itens.append({
                 'codigo': self.table_itens.item(row, 0).text(),
                 'qtd': self.table_itens.item(row, 1).text(),

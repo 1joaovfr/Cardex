@@ -7,23 +7,27 @@ class LancamentoController:
 
     def buscar_cliente_por_cnpj(self, cnpj_sujo):
         cnpj = ''.join(filter(str.isdigit, cnpj_sujo))
-        query = "SELECT cliente FROM Clientes WHERE cnpj = %s"
+        query = "SELECT cliente FROM clientes WHERE cnpj = %s"
         result = self.db.execute_query(query, (cnpj,), fetch=True)
         return result[0]['cliente'] if result else None
     
     def buscar_produto_por_codigo(self, codigo):
-        query = "SELECT codigo_item FROM Produtos WHERE codigo_item = %s"
+        query = "SELECT codigo_item FROM itens WHERE codigo_item = %s"
         result = self.db.execute_query(query, (codigo,), fetch=True)
         return True if result else False
 
     def salvar_nota_entrada(self, dados_nota, lista_itens):
-        # 1. Validação prévia
+        # 1. Validação prévia (MANTIDA)
         cliente_existente = self.buscar_cliente_por_cnpj(dados_nota['cnpj'])
         
         if not cliente_existente:
-            raise Exception(f"Erro de Validação:\n\nO CNPJ {dados_nota['cnpj']} não está cadastrado no sistema.\nPor favor, realize o cadastro do cliente antes de lançar a nota.")
+            raise Exception(f"Erro de Validação:\n\nO CNPJ {dados_nota['cnpj']} não está cadastrado...")
 
         cnpj_limpo = ''.join(filter(str.isdigit, dados_nota['cnpj']))
+        
+        # --- NOVO: Captura a data atual do sistema ---
+        # Isso garante que a data seja HOJE, independente do que o usuário selecione
+        data_lancamento_automatico = datetime.now().date() 
         
         with self.db.get_connection() as conn:
             with conn.cursor() as cursor:
@@ -31,14 +35,14 @@ class LancamentoController:
                 # 1. Inserir Nota Fiscal
                 # -----------------------------------------------------------
                 sql_nf = """
-                    INSERT INTO NotasFiscais (numero_nota, data_nota, cnpj_cliente, data_lancamento)
+                    INSERT INTO notas_fiscais (numero_nota, data_nota, cnpj_cliente, data_lancamento)
                     VALUES (%s, %s, %s, %s) RETURNING id
                 """
                 cursor.execute(sql_nf, (
                     dados_nota['numero'], 
                     dados_nota['emissao'], 
                     cnpj_limpo, 
-                    dados_nota['recebimento']
+                    data_lancamento_automatico  # <--- AQUI MUDOU: Usamos a variável automática
                 ))
                 id_nota = cursor.fetchone()[0]
 
@@ -55,7 +59,7 @@ class LancamentoController:
 
                 # Busca o MAIOR código existente que começa com essa letra para continuar a sequência
                 # Exemplo: Se existir A0005, retorna A0005. Se não existir, retorna None.
-                sql_seq = "SELECT MAX(codigo_analise) FROM ItensGarantia WHERE codigo_analise LIKE %s"
+                sql_seq = "SELECT MAX(codigo_analise) FROM itens_notas WHERE codigo_analise LIKE %s"
                 cursor.execute(sql_seq, (f"{letra_mes}%",))
                 resultado = cursor.fetchone()
                 
@@ -69,11 +73,11 @@ class LancamentoController:
                     sequencial_atual = 1
 
                 # -----------------------------------------------------------
-                # 3. Inserir Itens (Com loop do sequencial)
+                # 3. Inserir itens (Com loop do sequencial)
                 # -----------------------------------------------------------
                 sql_item = """
-                    INSERT INTO ItensGarantia 
-                    (id_nota_fiscal, codigo_produto, valor_item, ressarcimento, codigo_analise, status)
+                    INSERT INTO itens_notas 
+                    (id_nota_fiscal, codigo_item, valor_item, ressarcimento, codigo_analise, status)
                     VALUES (%s, %s, %s, %s, %s, 'Pendente')
                 """
                 

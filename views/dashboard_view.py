@@ -6,32 +6,18 @@ from PySide6.QtWebEngineWidgets import QWebEngineView
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import qtawesome as qta
-from controllers import DashboardController
 
-# --- PALETA DE CORES DARK BLUE ---
-CARD_BG = "#1b212d"
-TEXT_COLOR = "#dce1e8"
+# --- Controller ---
+from controllers.dashboard_controller import DashboardController
 
-# Cores Harmônicas
-COLOR_BLUE_PRIMARY = "#3182ce"   # Azul para barras principais
-COLOR_CYAN_TEAL = "#38b2ac"      # Verde água para rankings
-COLOR_INDIGO = "#5a67d8"         # Roxo azulado para barras secundárias
-COLOR_NEON_BLUE = "#63b3ed"      # Azul claro para destaques
-COLOR_LINE_HIGHLIGHT = "#00b5d8" # Ciano brilhante para linhas
-
-# Cores de Status
-COLOR_SUCCESS = "#48bb78"
-COLOR_DANGER = "#f56565"
-COLOR_WARNING = "#ecc94b"
-COLOR_NEUTRAL = "#a0aec0"
-
-STYLE_SHEET = """
-QWidget { background-color: #12161f; color: #dce1e8; font-family: 'Segoe UI', sans-serif; }
-QFrame#Card { background-color: #1b212d; border-radius: 8px; border: 1px solid #2c3545; }
-QLabel#CardTitle { background-color: transparent; color: #a0aec0; font-size: 14px; font-weight: bold; padding-bottom: 5px; border-bottom: 1px solid #2c3545; }
-QPushButton#btn_nav { background-color: #2c5282; color: white; border: 1px solid #2a4365; padding: 8px 15px; border-radius: 4px; font-weight: bold; }
-QPushButton#btn_nav:hover { background-color: #3182ce; }
-"""
+# --- Estilos ---
+from styles.dashboard_styles import DASHBOARD_STYLES
+from styles.theme import (
+    COLOR_CARD_BG, COLOR_CARD_BORDER, COLOR_TEXT, COLOR_TEXT_DIM,
+    COLOR_SUCCESS, COLOR_DANGER, COLOR_WARNING,
+    CHART_BLUE_PRIMARY, CHART_CYAN_TEAL, CHART_INDIGO, 
+    CHART_NEON_BLUE, CHART_LINE_HIGHLIGHT, COLOR_INFO
+)
 
 class PlotlyWidget(QWebEngineView):
     def __init__(self, fig):
@@ -42,7 +28,7 @@ class PlotlyWidget(QWebEngineView):
         html = fig.to_html(include_plotlyjs='cdn', full_html=False, config=config)
         
         full_html = f"""<html><head><style>
-        body {{ background-color: {CARD_BG}; margin: 0; padding: 0; overflow: hidden; }}
+        body {{ background-color: {COLOR_CARD_BG}; margin: 0; padding: 0; overflow: hidden; }}
         </style></head><body>{html}</body></html>"""
         self.setHtml(full_html)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -51,17 +37,17 @@ class PageDashboard(QWidget):
     def __init__(self):
         super().__init__()
         self.controller = DashboardController()
-        self.setWindowTitle("Dashboard Executivo")
-        self.setStyleSheet(STYLE_SHEET)
+        self.setWindowTitle("Dashboard Garantia")
+        self.setStyleSheet(DASHBOARD_STYLES)
 
         main_layout = QVBoxLayout(self) 
         main_layout.setContentsMargins(20, 20, 20, 20)
         main_layout.setSpacing(20)
 
-        # TOPO
+        # --- TOPO ---
         top_bar = QHBoxLayout()
-        lbl_titulo = QLabel("Visão Geral - Executivo")
-        lbl_titulo.setStyleSheet(f"font-size: 20px; font-weight: bold; color: {COLOR_NEON_BLUE}; background: transparent;")
+        lbl_titulo = QLabel("Visão Geral - Indicadores")
+        lbl_titulo.setStyleSheet(f"font-size: 20px; font-weight: bold; color: {CHART_NEON_BLUE}; background: transparent;")
         
         btn_refresh = QPushButton(" Atualizar")
         btn_refresh.setObjectName("btn_nav")
@@ -73,39 +59,41 @@ class PageDashboard(QWidget):
         top_bar.addWidget(btn_refresh)
         main_layout.addLayout(top_bar)
 
-        # GRID
-        self.grid_layout = QGridLayout()
-        self.grid_layout.setSpacing(20)
-        self.grid_layout.setColumnStretch(0, 1)
-        self.grid_layout.setColumnStretch(1, 1)
-        self.grid_layout.setRowStretch(0, 1)
-        self.grid_layout.setRowStretch(1, 1)
+        # --- GRID 2x2 ---
+        self.grid = QGridLayout()
+        self.grid.setSpacing(20)
+        self.grid.setColumnStretch(0, 1)
+        self.grid.setColumnStretch(1, 1)
+        self.grid.setRowStretch(0, 1)
+        self.grid.setRowStretch(1, 1)
 
-        main_layout.addLayout(self.grid_layout)
+        main_layout.addLayout(self.grid)
+        
         self.carregar_dados()
 
     def carregar_dados(self):
-        while self.grid_layout.count():
-            item = self.grid_layout.takeAt(0)
+        while self.grid.count():
+            item = self.grid.takeAt(0)
             if item.widget(): item.widget().deleteLater()
 
         kpis = self.controller.get_kpis()
         
-        # 1. Crescimento (AGORA DUAL AXIS)
-        fig_cresc = self.criar_grafico_crescimento(kpis.get('crescimento', []))
-        self.grid_layout.addWidget(self.criar_card("Evolução Mensal (Qtd vs R$)", fig_cresc), 0, 0)
+        # 1. Financeiro
+        fig1 = self.criar_grafico_financeiro(kpis.comparativo_financeiro)
+        self.grid.addWidget(self.criar_card("Valor Recebido x Valor Retornado (R$)", fig1), 0, 0)
 
-        # 2. Top 5 Produtos (AGORA COM VALOR E QTD)
-        fig_top5 = self.criar_grafico_top5(kpis.get('top5', []))
-        self.grid_layout.addWidget(self.criar_card("Top 5 Procedência (Qtd e Valor)", fig_top5), 0, 1)
+        # 2. Status
+        fig2 = self.criar_grafico_status(kpis.status_data)
+        self.grid.addWidget(self.criar_card("Distribuição de Status", fig2), 0, 1)
 
-        # 3. Status (Rosca)
-        fig_rosca = self.criar_grafico_rosca(kpis.get('status_data', []))
-        self.grid_layout.addWidget(self.criar_card("Distribuição de Status", fig_rosca), 1, 0)
+        # 3. Entrada
+        fig3 = self.criar_grafico_entrada(kpis.entrada_mensal)
+        self.grid.addWidget(self.criar_card("Itens Recebidos por Mês (Qtd x R$)", fig3), 1, 0)
 
-        # 4. Pendentes (Eixo Duplo)
-        fig_dual = self.criar_grafico_dual(kpis.get('pendentes', []))
-        self.grid_layout.addWidget(self.criar_card("Análise de Pendências (Valor vs Qtd)", fig_dual), 1, 1)
+        # 4. Lead Time (Gap Lançamento)
+        # Título alterado para refletir a nova lógica
+        fig4 = self.criar_grafico_lead_time(kpis.evolucao_lead_time)
+        self.grid.addWidget(self.criar_card("Gap Médio: Recebimento -> Lançamento", fig4), 1, 1)
 
     def criar_card(self, titulo, fig):
         card = QFrame(objectName="Card")
@@ -118,156 +106,142 @@ class PageDashboard(QWidget):
         else: layout.addWidget(QLabel("Sem dados", styleSheet="color: #666; font-style: italic;"))
         return card
 
-    # --- ATUALIZAÇÕES NOS GRÁFICOS ---
+    # --- LÓGICA DE DATA ---
+    def formatar_data_pt(self, data_iso):
+        """Converte '2025-12' para 'Dez/25'."""
+        if not data_iso or '-' not in str(data_iso): return str(data_iso)
+        try:
+            parts = str(data_iso).split('-')
+            if len(parts) < 2: return data_iso
+            ano, mes = parts[0], parts[1]
+            meses = {'01': 'Jan', '02': 'Fev', '03': 'Mar', '04': 'Abr', '05': 'Mai', '06': 'Jun',
+                     '07': 'Jul', '08': 'Ago', '09': 'Set', '10': 'Out', '11': 'Nov', '12': 'Dez'}
+            nome_mes = meses.get(mes, mes)
+            ano_curto = ano[2:] if len(ano) == 4 else ano
+            return f"{nome_mes}/{ano_curto}"
+        except:
+            return data_iso
 
-    def criar_grafico_crescimento(self, dados):
+    # --- GRÁFICOS ---
+
+    def criar_grafico_financeiro(self, dados):
         if not dados: return None
-        meses = [d['mes'] for d in dados]
-        valores = [d['total'] for d in dados]
-        qtds = [d['qtd'] for d in dados]
+        meses = [self.formatar_data_pt(d.mes) for d in dados]
+        rec = [d.valor_recebido for d in dados]
+        ret = [d.valor_retornado for d in dados]
+
+        fig = go.Figure()
+        fig.add_trace(go.Bar(
+            x=meses, y=rec, name="Recebido (R$)",
+            marker_color=CHART_BLUE_PRIMARY, opacity=0.7,
+            hovertemplate='R$ %{y:,.2f}'
+        ))
+        fig.add_trace(go.Scatter(
+            x=meses, y=ret, name="Retornado (R$)",
+            line=dict(color=COLOR_DANGER, width=3), mode='lines+markers',
+            hovertemplate='R$ %{y:,.2f}'
+        ))
+        fig.update_xaxes(type='category')
+        self._apply_theme(fig)
+        fig.update_layout(legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
+        return fig
+
+    def criar_grafico_status(self, dados):
+        if not dados: return None
+        labels = [d.status for d in dados]
+        values = [d.qtd for d in dados]
+        colors_map = {'Procedente': COLOR_DANGER, 'Improcedente': COLOR_SUCCESS, 'Pendente': COLOR_WARNING}
+        colors = [colors_map.get(l, COLOR_TEXT_DIM) for l in labels]
+
+        fig = go.Figure(data=[go.Pie(
+            labels=labels, values=values, hole=.5, marker=dict(colors=colors),
+            textinfo='percent+label', textfont=dict(color='white')
+        )])
+        self._apply_theme(fig)
+        fig.update_layout(legend=dict(orientation="h", yanchor="top", y=-0.1))
+        return fig
+
+    def criar_grafico_entrada(self, dados):
+        if not dados: return None
+        meses = [self.formatar_data_pt(d.mes) for d in dados]
+        qtds = [d.qtd for d in dados]
+        valores = [d.valor for d in dados]
 
         fig = make_subplots(specs=[[{"secondary_y": True}]])
+        fig.add_trace(go.Bar(
+            x=meses, y=qtds, name="Qtd",
+            marker_color=CHART_INDIGO, opacity=0.8
+        ), secondary_y=False)
+        fig.add_trace(go.Scatter(
+            x=meses, y=valores, name="Valor (R$)",
+            line=dict(color=CHART_LINE_HIGHLIGHT, width=3), mode='lines+markers'
+        ), secondary_y=True)
 
-        # Barras = Quantidade (Volume)
-        fig.add_trace(
-            go.Bar(
-                x=meses, 
-                y=qtds, 
-                name="Qtd", 
-                marker_color=COLOR_BLUE_PRIMARY, 
-                opacity=0.8,
-                hovertemplate='%{y} itens'
-            ),
-            secondary_y=False
-        )
-
-        # Linha = Valor Financeiro
-        fig.add_trace(
-            go.Scatter(
-                x=meses, 
-                y=valores, 
-                name="Total (R$)", 
-                # ALTERADO: Removido '+text' do mode
-                mode='lines+markers', 
-                # REMOVIDO: text=[...], textposition="..."
-                line=dict(color=COLOR_NEON_BLUE, width=3),
-                marker=dict(size=6, color='white', line=dict(width=2, color=COLOR_NEON_BLUE)),
-                # O hovertemplate garante que o valor apareça ao passar o mouse
-                hovertemplate='R$ %{y:,.2f}'
-            ),
-            secondary_y=True
-        )
-
-        self._apply_theme(fig)
-
-        # Mantendo a legenda igual ao de Pendências
-        fig.update_layout(
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-        )
-        
-        fig.update_yaxes(showgrid=False, secondary_y=False)
-        fig.update_yaxes(showgrid=False, secondary_y=True)
-        
-        return fig
-
-    def criar_grafico_top5(self, dados):
-        if not dados: return None
-        dados_inv = dados[::-1] 
-        produtos = [d['produto'] for d in dados_inv]
-        qtds = [d['qtd'] for d in dados_inv]
-        valores = [d['valor'] for d in dados_inv] # Novo campo
-
-        # Criamos o texto que vai aparecer na barra: "15 un. | R$ 1.500,00"
-        textos_barra = [f"{q} un.   <span style='color:#a0aec0'>|</span>   R$ {v:,.2f}" for q, v in zip(qtds, valores)]
-
-        fig = go.Figure(data=[
-            go.Bar(
-                x=qtds, 
-                y=produtos,
-                orientation='h',
-                marker_color=COLOR_CYAN_TEAL,
-                # Usamos o texto customizado
-                text=textos_barra,
-                textposition='auto', # Plotly tenta colocar dentro, se não der, põe fora
-                hovertemplate='<b>%{y}</b><br>Quantidade: %{x}<br>Valor Total: R$ %{customdata:,.2f}<extra></extra>',
-                customdata=valores # Passa o valor para usar no tooltip
-            )
-        ])
-        
-        # Aumentar margem esquerda se os nomes dos produtos forem longos
-        fig.update_layout(margin=dict(l=10, r=20, t=30, b=10))
-        self._apply_theme(fig)
-        return fig
-
-    def criar_grafico_rosca(self, dados):
-        if not dados: return None
-        labels = [d['status'] for d in dados]
-        values = [d['qtd'] for d in dados]
-        total = sum(values)
-
-        colors_map = {
-            'Procedente': COLOR_SUCCESS, 'Concluído': COLOR_SUCCESS,
-            'Improcedente': COLOR_DANGER, 'Reprovado': COLOR_DANGER,
-            'Pendente': COLOR_WARNING, 'Em Análise': COLOR_NEON_BLUE
-        }
-        lista_cores = [colors_map.get(l, COLOR_NEUTRAL) for l in labels]
-
-        fig = go.Figure(data=[
-            go.Pie(
-                labels=labels, values=values, hole=.6, 
-                marker=dict(colors=lista_cores),
-                textinfo='percent', hoverinfo='label+value',
-                textfont=dict(color='#ffffff')
-            )
-        ])
-        fig.add_annotation(text=f"{total}", x=0.5, y=0.5, font_size=22, showarrow=False, font_color="white")
-        self._apply_theme(fig)
-        return fig
-
-    def criar_grafico_dual(self, dados):
-        # Pendentes (Valor vs Qtd)
-        if not dados: return None
-        meses = [d['mes'] for d in dados]
-        qtds = [d['qtd'] for d in dados]
-        valores = [d['valor'] for d in dados]
-
-        fig = make_subplots(specs=[[{"secondary_y": True}]])
-
-        # Barras = Qtd
-        fig.add_trace(
-            go.Bar(x=meses, y=qtds, name="Qtd", marker_color=COLOR_INDIGO, opacity=0.8),
-            secondary_y=False
-        )
-
-        # Linha = Valor
-        fig.add_trace(
-            go.Scatter(
-                x=meses, y=valores, name="Valor (R$)", 
-                mode='lines+markers', 
-                line=dict(color=COLOR_LINE_HIGHLIGHT, width=3),
-                marker=dict(size=6, color='white', line=dict(width=2, color=COLOR_LINE_HIGHLIGHT))
-            ),
-            secondary_y=True
-        )
-
+        fig.update_xaxes(type='category')
         self._apply_theme(fig)
         fig.update_layout(legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
         fig.update_yaxes(showgrid=False, secondary_y=False)
         fig.update_yaxes(showgrid=False, secondary_y=True)
         return fig
 
+    def criar_grafico_lead_time(self, valor_medio):
+        """
+        Cria um Gauge Chart (Velocímetro) com a Média Geral.
+        Recebe um float único (ex: 4.5), não uma lista.
+        """
+        if valor_medio is None: return None
+        
+        # Meta definida (7 Dias)
+        META = 7
+
+        fig = go.Figure(go.Indicator(
+            mode = "gauge+number+delta",
+            value = valor_medio,
+            
+            # Delta mostra a diferença para a meta (Vermelho se estiver acima, Verde se abaixo)
+            delta = {
+                'reference': META, 
+                'increasing': {'color': COLOR_DANGER}, # Se subiu (piorou), fica vermelho
+                'decreasing': {'color': COLOR_SUCCESS} # Se caiu (melhorou), fica verde
+            },
+            
+            title = {
+                'text': "Média Geral (6 Meses)", 
+                'font': {'size': 14, 'color': COLOR_TEXT_DIM}
+            },
+            
+            gauge = {
+                'axis': {'range': [0, 15], 'tickwidth': 1, 'tickcolor': COLOR_TEXT},
+                'bar': {'color': CHART_NEON_BLUE}, # Cor do ponteiro
+                'bgcolor': "rgba(0,0,0,0)",
+                'borderwidth': 2,
+                'bordercolor': COLOR_CARD_BORDER,
+                
+                # Faixas de Cores
+                'steps': [
+                    {'range': [0, 5], 'color': "rgba(72, 187, 120, 0.2)"},   # 0-5 dias: Verde (Ótimo)
+                    {'range': [5, 7], 'color': "rgba(236, 201, 75, 0.2)"},   # 5-7 dias: Amarelo (Atenção)
+                    {'range': [7, 15], 'color': "rgba(245, 101, 101, 0.2)"}  # >7 dias: Vermelho (Crítico)
+                ],
+                
+                # Linha da Meta
+                'threshold': {
+                    'line': {'color': "white", 'width': 4},
+                    'thickness': 0.75,
+                    'value': META
+                }
+            }
+        ))
+        
+        self._apply_theme(fig)
+        return fig
+
     def _apply_theme(self, fig):
         fig.update_layout(
-            paper_bgcolor=CARD_BG, 
-            plot_bgcolor=CARD_BG, 
-            font_color=TEXT_COLOR,
-            font_family="Segoe UI",
+            paper_bgcolor=COLOR_CARD_BG, plot_bgcolor=COLOR_CARD_BG,
+            font_color=COLOR_TEXT, font_family="Segoe UI",
             margin=dict(l=10, r=10, t=30, b=10),
-            xaxis=dict(showgrid=False, zeroline=False, showline=True, linecolor='#2c3545'), 
+            xaxis=dict(showgrid=False, linecolor=COLOR_CARD_BORDER),
             yaxis=dict(showgrid=False, zeroline=False),
-            hovermode="x unified",
-            hoverlabel=dict(
-                bgcolor="#2d3748", font_size=12, font_family="Segoe UI",
-                font_color="white", bordercolor="#2c3545"
-            )
+            hovermode="x unified"
         )

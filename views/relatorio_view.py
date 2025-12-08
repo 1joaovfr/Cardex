@@ -8,71 +8,14 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushB
                                QFileDialog, QMessageBox, QAbstractItemView,
                                QDialog, QDateEdit, QFormLayout)
 from PySide6.QtCore import Qt, QDate, QPoint
-from controllers import RelatorioController
 
-# --- CSS BASE ---
-STYLE_SHEET_BASE = """
-QWidget { background-color: #12161f; color: #dce1e8; font-family: 'Segoe UI', sans-serif; font-size: 13px; }
+# --- Importação do Controller ---
+from controllers.relatorio_controller import RelatorioController
 
-/* POPUP PEQUENO */
-QDialog { 
-    background-color: #1b212d; 
-    border: 1px solid #3a5f8a; 
-    border-radius: 4px; 
-}
-
-/* CALENDÁRIO */
-QCalendarWidget QWidget { alternate-background-color: #202736; }
-QCalendarWidget QAbstractItemView:enabled { color: #dce1e8; background-color: #171c26; selection-background-color: #3a5f8a; selection-color: white; }
-QCalendarWidget QToolButton { color: #dce1e8; icon-size: 20px; background-color: #1b212d; }
-QCalendarWidget QMenu { background-color: #1b212d; color: #dce1e8; }
-QCalendarWidget QSpinBox { background-color: #171c26; color: #dce1e8; }
-QCalendarWidget QAbstractItemView:disabled { color: #4a5568; }
-
-/* BOTÃO CONFIRMAR (Compacto) */
-QPushButton#btn_confirmar { 
-    background-color: #2e7d32; 
-    color: white; 
-    border: none; 
-    padding: 6px; 
-    border-radius: 3px; 
-    font-weight: bold; 
-    font-size: 12px;
-}
-QPushButton#btn_confirmar:hover { background-color: #388e3c; }
-
-/* ESTILOS DA TELA PRINCIPAL */
-QFrame#FormCard { background-color: #1b212d; border-radius: 8px; border: 1px solid #2c3545; }
-QLabel#SectionTitle { color: #8ab4f8; background-color: #1b212d; font-size: 15px; font-weight: bold; padding-bottom: 5px; border-bottom: 1px solid #2c3545; }
-
-/* TABELA */
-QTableWidget { background-color: #171c26; alternate-background-color: #202736; gridline-color: #2c3545; border: none; font-size: 13px; }
-QHeaderView::section { background-color: #283042; color: #e0e6ed; padding: 6px; border: 1px solid #2c3545; font-weight: bold; text-transform: uppercase; }
-QTableWidget::item:selected { background-color: #3a5f8a; color: white; }
-
-/* SCROLLBARS */
-QScrollBar:vertical { background: #171c26; width: 8px; margin: 0px; }
-QScrollBar::handle:vertical { background-color: #3a5f8a; min-height: 30px; border-radius: 4px; }
-QScrollBar::handle:vertical:hover { background-color: #4b7bc0; }
-QScrollBar:horizontal { background: #171c26; height: 8px; margin: 0px; }
-QScrollBar::handle:horizontal { background-color: #3a5f8a; min-width: 30px; border-radius: 4px; }
-QScrollBar::handle:horizontal:hover { background-color: #4b7bc0; }
-QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical, QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { width: 0px; height: 0px; background: none; }
-QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical, QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal { background: none; }
-
-/* BOTÕES GERAIS */
-QPushButton { padding: 8px 15px; border-radius: 4px; font-weight: bold; }
-
-/* Botão Excel Header */
-QPushButton#btn_excel { background-color: transparent; border: none; padding: 5px; }
-QPushButton#btn_excel:hover { background-color: #2c3545; border-radius: 4px; }
-
-/* Paginação */
-QPushButton#btn_pag { background-color: #3a5f8a; color: white; border: 1px solid #2c3e50; }
-QPushButton#btn_pag:hover { background-color: #4b7bc0; }
-QPushButton#btn_pag:disabled { background-color: #252b38; color: #4a5568; border: 1px solid #252b38; }
-QLabel#lbl_pag { color: #a0aec0; background-color: #1b212d; font-weight: bold; font-size: 13px; }
-"""
+# --- Importação dos Estilos Padronizados ---
+# Certifique-se de ter criado styles/relatorio_styles.py e styles/common.py
+from styles.relatorio_styles import RELATORIO_STYLES
+from styles.common import get_date_edit_style
 
 class ExportarPopup(QDialog):
     def __init__(self, target_widget, parent=None):
@@ -82,13 +25,19 @@ class ExportarPopup(QDialog):
         self.setWindowFlags(Qt.Popup | Qt.FramelessWindowHint)
         self.setFixedWidth(200) 
         
+        # Gera o ícone temporário para usar na seta do DateEdit
         self.icon_path = self.gerar_icone_calendario()
-        self.setStyleSheet(STYLE_SHEET_BASE + self.get_date_edit_style())
+        
+        # --- APLICAÇÃO DE ESTILO ---
+        # Combina o estilo do Relatório + Estilo do DateEdit com o ícone gerado
+        style_date_edit = get_date_edit_style(self.icon_path)
+        self.setStyleSheet(RELATORIO_STYLES + style_date_edit)
         
         layout = QVBoxLayout(self)
         layout.setContentsMargins(10, 10, 10, 10)
         layout.setSpacing(8)
 
+        # Estilo inline apenas para labels muito pequenas deste popup
         lbl_style = "color: #a0aec0; font-size: 11px; font-weight: bold;"
         
         lbl_ini = QLabel("De:")
@@ -134,24 +83,14 @@ class ExportarPopup(QDialog):
         self.move(x, y)
 
     def gerar_icone_calendario(self):
+        """Gera um ícone temporário para ser usado no CSS do QDateEdit"""
         icon = qta.icon('fa5s.calendar-alt', color='#8ab4f8') 
         caminho_arquivo = "temp_calendar_icon.png"
+        # Salva o ícone em disco para que o CSS possa ler (image: url(...))
         icon.pixmap(16, 16).save(caminho_arquivo)
+        # Retorna o caminho absoluto com barras normais (evita erro no Windows)
         return os.path.abspath(caminho_arquivo).replace("\\", "/")
 
-    def get_date_edit_style(self):
-        return f"""
-        QDateEdit {{
-            background-color: #171c26; border: 1px solid #2c3545; border-radius: 3px; 
-            padding: 4px; color: #dce1e8; font-size: 12px; padding-right: 25px;
-        }}
-        QDateEdit:hover {{ border: 1px solid #3a5f8a; }}
-        QDateEdit::drop-down {{
-            subcontrol-origin: padding; subcontrol-position: top right; width: 25px;
-            border-left: 1px solid #2c3545; background-color: #1b212d;
-        }}
-        QDateEdit::down-arrow {{ image: url("{self.icon_path}"); width: 14px; height: 14px; }}
-        """
 
 class PageRelatorio(QWidget):
     def __init__(self):
@@ -159,7 +98,9 @@ class PageRelatorio(QWidget):
         self.setObjectName("PageRelatorio")
         self.controller = RelatorioController()
         self.setWindowTitle("Relatório Geral de Garantias")
-        self.setStyleSheet(STYLE_SHEET_BASE)
+        
+        # --- APLICAÇÃO DE ESTILO ---
+        self.setStyleSheet(RELATORIO_STYLES)
         
         self.todos_dados = []    
         self.pagina_atual = 1
@@ -195,16 +136,15 @@ class PageRelatorio(QWidget):
         
         card_layout.addLayout(header_layout)
 
-        # --- DEFINIÇÃO DE COLUNAS ---
-        # ADICIONADO "Data Lanç."
         self.colunas = [
-            "Status", "Cód. Análise", "Data Lanç.", "Recebimento", "Data Análise", 
-            "CNPJ", "Cliente", "Grupo Cli.", "Cidade", "UF", "Região",
-            "NF Entrada", "Cód. Item", "Grupo Item", "N. Série",
-            "Cód. Avaria", "Desc. Avaria",
+            "Lançamento", "Recebimento", "Análise", "Status", "Cód. Análise",
+            "CNPJ", "Cliente", "Grp. Cliente", "Cidade", "UF", "Região", 
+            "Emissão", "Nota Fiscal",
+            "Item", "Grp. Item", "Num. Série", "Cód. Avaria", "Desc. Avaria", 
             "Valor", "Ressarc.",
-            "NF Retorno", "Tipo Ret.", "Data Ret."
+            "Retorno", "NF Retorno", "Desc. Retorno"
         ]
+
         
         self.table = QTableWidget()
         self.table.setColumnCount(len(self.colunas))
@@ -217,14 +157,10 @@ class PageRelatorio(QWidget):
         self.table.setFocusPolicy(Qt.NoFocus)
         
         header = self.table.horizontalHeader()
-        header.setSectionResizeMode(QHeaderView.Interactive)
-        header.setDefaultSectionSize(100)
-        # Ajustes de largura
-        header.resizeSection(0, 80)  # Status
-        header.resizeSection(2, 90)  # Data Lanç (Novo)
-        header.resizeSection(6, 200) # Nome Cliente (Índice mudou pois entrou coluna nova)
-        header.resizeSection(16, 200) # Descrição Avaria
-        
+        header.setDefaultSectionSize(120)
+
+        header.resizeSection(17, 250)
+
         card_layout.addWidget(self.table)
 
         # --- PAGINAÇÃO ---
@@ -255,54 +191,45 @@ class PageRelatorio(QWidget):
 
     def carregar_dados(self):
         try:
-            raw_data = self.controller.buscar_dados()
+            lista_dtos = self.controller.buscar_dados()
             self.todos_dados = []
             
-            for d in raw_data:
-                # Funções auxiliares internas
-                def safe_str(val, default=''):
-                    return str(val) if val is not None else default
+            for item in lista_dtos:
+                def fmt_moeda(val): return f"R$ {val:.2f}"
 
-                def fmt_moeda(val):
-                    try:
-                        return f"R$ {float(val):.2f}"
-                    except:
-                        return "R$ 0.00"
-
+                # AQUI É O PULO DO GATO: A ordem deve bater com self.colunas
                 linha = [
-                    safe_str(d.get('status')),
-                    safe_str(d.get('codigo_analise')),
+                    item.data_lancamento,     # 1. Lançamento
+                    item.data_recebimento,    # 2. Recebimento
+                    item.data_analise,        # 3. Análise
+                    item.status,              # 4. Status
+                    item.codigo_analise,      # 5. Cód Análise
                     
-                    # --- ADICIONADO AQUI ---
-                    safe_str(d.get('data_lancamento')),
+                    item.cnpj,                # 6. CNPJ
+                    item.nome_cliente,        # 7. Cliente
+                    item.grupo_cliente,       # 8. Grp Cliente
+                    item.cidade,              # 9. Cidade
+                    item.estado,              # 10. UF
+                    item.regiao,              # 11. Região
                     
-                    safe_str(d.get('data_recebimento')),
-                    safe_str(d.get('data_analise')),
+                    item.data_emissao,        # 12. Emissão
+                    item.nf_entrada,          # 13. NF
                     
-                    safe_str(d.get('cnpj')),
-                    safe_str(d.get('nome_cliente')),
-                    safe_str(d.get('grupo_cliente')),
-                    safe_str(d.get('cidade')),
-                    safe_str(d.get('estado')),
-                    safe_str(d.get('regiao')),
+                    item.codigo_item,         # 14. Item
+                    item.grupo_item,          # 15. Grp Item
+                    item.numero_serie,        # 16. Série
+                    item.codigo_avaria,       # 17. Cód Avaria
+                    item.descricao_avaria,    # 18. Desc Avaria
                     
-                    safe_str(d.get('nf_entrada')),
-                    safe_str(d.get('codigo_item')),
-                    safe_str(d.get('grupo_item')),
-                    safe_str(d.get('numero_serie')),
+                    fmt_moeda(item.valor_item),    # 19. Valor
+                    fmt_moeda(item.ressarcimento), # 20. Ressarc
                     
-                    safe_str(d.get('codigo_avaria')),
-                    safe_str(d.get('descricao_avaria')),
-                    
-                    fmt_moeda(d.get('valor_item')),
-                    fmt_moeda(d.get('ressarcimento')),
-                    
-                    safe_str(d.get('nf_retorno')),   # Futuro
-                    safe_str(d.get('tipo_retorno')), # Futuro
-                    safe_str(d.get('data_retorno'))  # Futuro
+                    item.data_retorno,        # 21. Retorno (Data) - Ajustei para bater com seu título
+                    item.nf_retorno,          # 22. NF Retorno
+                    item.tipo_retorno         # 23. Desc Retorno
                 ]
                 self.todos_dados.append(linha)
-            
+
             total_itens = len(self.todos_dados)
             self.total_paginas = math.ceil(total_itens / self.itens_por_pagina)
             if self.total_paginas < 1: self.total_paginas = 1
@@ -321,7 +248,7 @@ class PageRelatorio(QWidget):
         self.table.setRowCount(len(dados_da_pagina))
         for row_idx, row_data in enumerate(dados_da_pagina):
             for col_idx, valor in enumerate(row_data):
-                item = QTableWidgetItem(valor)
+                item = QTableWidgetItem(str(valor) if valor is not None else "")
                 item.setTextAlignment(Qt.AlignCenter)
                 self.table.setItem(row_idx, col_idx, item)
         self.lbl_paginacao.setText(f"Página {self.pagina_atual} de {self.total_paginas}")

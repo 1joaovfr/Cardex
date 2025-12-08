@@ -5,103 +5,13 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineE
                                QHeaderView, QMessageBox, QDateEdit, QCheckBox, 
                                QDoubleSpinBox, QSpinBox)
 from PySide6.QtCore import Qt, QDate
-from controllers import LancamentoController
 
-# --- ESTILO ORIGINAL (MANTIDO) ---
-STYLE_SHEET = """
-QWidget {
-    background-color: #12161f;
-    color: #dce1e8;
-    font-family: 'Segoe UI', sans-serif;
-    font-size: 13px;
-}
-QFrame#FormCard {
-    background-color: #1b212d;
-    border-radius: 8px;
-    border: 1px solid #2c3545;
-}
-QLineEdit, QDateEdit, QDoubleSpinBox, QSpinBox {
-    background-color: #171c26;
-    border: 1px solid #2c3545;
-    border-radius: 4px;
-    padding: 6px;
-    color: #e0e6ed;
-}
-QLineEdit:focus, QDateEdit:focus, QDoubleSpinBox:focus, QSpinBox:focus {
-    border: 1px solid #3a5f8a;
-    background-color: #1a202c;
-}
-QLineEdit:read-only {
-    background-color: #141820;
-    color: #718096;
-    border: 1px solid #252b38;
-}
-QDoubleSpinBox::up-button, QDoubleSpinBox::down-button,
-QSpinBox::up-button, QSpinBox::down-button {
-    width: 0px; height: 0px; border: none; background: transparent;
-}
-QLabel { 
-    background-color: transparent; 
-    color: #a0aec0; 
-    font-weight: 500; 
-}
-QLabel#SectionTitle {
-    color: #8ab4f8; 
-    font-size: 15px; 
-    font-weight: bold;
-    padding-bottom: 5px; 
-    border-bottom: 1px solid #2c3545;
-}
-/* TABELA - O SEU ESTILO ORIGINAL */
-QTableWidget { 
-    background-color: #171c26; 
-    alternate-background-color: #202736; 
-    gridline-color: #2c3545; 
-    border: none; 
-    font-size: 13px; 
-}
-QHeaderView::section { 
-    background-color: #283042; 
-    color: #e0e6ed; 
-    padding: 6px; 
-    border: 1px solid #2c3545; 
-    font-weight: bold; 
-    text-transform: uppercase; 
-}
-QTableWidget::item:selected { 
-    background-color: #3a5f8a; 
-    color: white; 
-}
+# --- Importação do Controller ---
+from controllers.lancamento_controller import LancamentoController
 
-/* SCROLLBARS */
-QScrollBar:vertical { background: #171c26; width: 8px; margin: 0px; }
-QScrollBar::handle:vertical { background-color: #3a5f8a; min-height: 30px; border-radius: 4px; }
-QScrollBar::handle:vertical:hover { background-color: #4b7bc0; }
-QScrollBar:horizontal { background: #171c26; height: 8px; margin: 0px; }
-QScrollBar::handle:horizontal { background-color: #3a5f8a; min-width: 30px; border-radius: 4px; }
-QScrollBar::handle:horizontal:hover { background-color: #4b7bc0; }
-QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical, 
-QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { width: 0px; height: 0px; background: none; }
-QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical,
-QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal { background: none; }
-
-QCheckBox { color: #dce1e8; spacing: 8px; }
-QCheckBox::indicator { width: 18px; height: 18px; border-radius: 3px; border: 1px solid #2c3545; background: #171c26; }
-QCheckBox::indicator:checked { background-color: #3a5f8a; border: 1px solid #3a5f8a; }
-
-QPushButton#btn_add {
-    background-color: #3a5f8a; color: white; border: none; padding: 8px 15px; border-radius: 4px; font-weight: bold;
-}
-QPushButton#btn_add:hover { background-color: #4b7bc0; }
-QPushButton#btn_primary {
-    background-color: #2e7d32; color: white; border: 1px solid #1b5e20; padding: 10px 20px; border-radius: 4px; font-weight: bold;
-}
-QPushButton#btn_primary:hover { background-color: #388e3c; }
-QPushButton#btn_secondary {
-    background-color: #1b212d; color: #a0aec0; border: 1px solid #2c3e50; padding: 10px 20px; border-radius: 4px;
-}
-QPushButton#btn_secondary:hover { background-color: #2c3545; color: white; }
-"""
+# --- Importação do Estilo Padronizado ---
+# Certifique-se de ter criado os arquivos styles/lancamento_styles.py, common.py e theme.py
+from styles.lancamento_styles import LANCAMENTO_STYLES
 
 class PageLancamento(QWidget):
     def __init__(self):
@@ -110,7 +20,9 @@ class PageLancamento(QWidget):
         self.controller = LancamentoController()
         
         self.setWindowTitle("Lançamento de NF-e")
-        self.setStyleSheet(STYLE_SHEET)
+        
+        # --- APLICAÇÃO DO ESTILO ---
+        self.setStyleSheet(LANCAMENTO_STYLES)
 
         # Layout Principal
         main_layout = QVBoxLayout(self)
@@ -138,6 +50,7 @@ class PageLancamento(QWidget):
         self.txt_num_nf = QLineEdit(placeholderText="Nº Nota")
         self.txt_num_nf.setFixedWidth(100)
 
+        # QDateEdit com calendarPopup=True para ativar o estilo personalizado do calendário
         self.dt_emissao = QDateEdit(calendarPopup=True, date=QDate.currentDate())
         self.dt_emissao.setFixedWidth(110)
         
@@ -164,7 +77,7 @@ class PageLancamento(QWidget):
         card_itens = QFrame(objectName="FormCard")
         layout_itens = QVBoxLayout(card_itens)
         
-        lbl_sec_itens = QLabel("itens da Nota")
+        lbl_sec_itens = QLabel("Itens da Nota")
         lbl_sec_itens.setObjectName("SectionTitle")
         layout_itens.addWidget(lbl_sec_itens)
 
@@ -224,10 +137,9 @@ class PageLancamento(QWidget):
         self.table_itens.setSelectionBehavior(QTableWidget.SelectRows)
         self.table_itens.setEditTriggers(QTableWidget.NoEditTriggers)
         
-        # --- ALTERAÇÃO AQUI: Cabeçalhos com tamanho igual (Stretch) ---
+        # Cabeçalhos com tamanho igual (Stretch)
         header = self.table_itens.horizontalHeader()
         header.setSectionResizeMode(QHeaderView.Stretch)
-        # Removido os ResizeToContents das colunas 0 e 1 para ficar tudo igual
 
         layout_itens.addWidget(self.table_itens)
 
@@ -237,10 +149,12 @@ class PageLancamento(QWidget):
         self.btn_cancelar = QPushButton(" Cancelar")
         self.btn_cancelar.setObjectName("btn_secondary")
         self.btn_cancelar.setIcon(qta.icon('fa5s.times', color='#a0aec0'))
+        self.btn_cancelar.setCursor(Qt.PointingHandCursor)
         
         self.btn_salvar = QPushButton(" Salvar Nota Fiscal")
         self.btn_salvar.setObjectName("btn_primary")
         self.btn_salvar.setIcon(qta.icon('fa5s.check', color='white'))
+        self.btn_salvar.setCursor(Qt.PointingHandCursor)
         self.btn_salvar.clicked.connect(self.salvar_tudo)
 
         action_buttons_layout.addStretch()
@@ -250,7 +164,6 @@ class PageLancamento(QWidget):
         layout_itens.addLayout(action_buttons_layout)
         main_layout.addWidget(card_itens)
 
-    # --- LÓGICA MANTIDA ---
     def toggle_ressarcimento(self, checked):
         self.lbl_vlr_ressarc.setVisible(checked)
         self.spin_vlr_ressarc.setVisible(checked)
@@ -266,6 +179,7 @@ class PageLancamento(QWidget):
             QMessageBox.warning(self, "Aviso", "Preencha o código do item.")
             return
 
+        # Busca no Controller
         existe = self.controller.buscar_produto_por_codigo(codigo)
         
         if not existe:
@@ -288,13 +202,12 @@ class PageLancamento(QWidget):
         row = self.table_itens.rowCount()
         self.table_itens.insertRow(row)
 
-        # --- ALTERAÇÃO AQUI: Função auxiliar para centralizar ---
+        # Função auxiliar para centralizar
         def criar_item_centro(texto):
             item = QTableWidgetItem(str(texto))
             item.setTextAlignment(Qt.AlignCenter)
             return item
 
-        # Uso da função auxiliar
         self.table_itens.setItem(row, 0, criar_item_centro(codigo))
         self.table_itens.setItem(row, 1, criar_item_centro(qtd))
         self.table_itens.setItem(row, 2, criar_item_centro(f"R$ {vlr_unit:.2f}"))
@@ -307,6 +220,7 @@ class PageLancamento(QWidget):
         
         self.table_itens.setItem(row, 5, criar_item_centro(f"R$ {vlr_ressarc:.2f}"))
 
+        # Limpar campos para próximo item
         self.txt_cod_item.clear()
         self.spin_qtd.setValue(1)
         self.spin_valor.setValue(0.00)
@@ -340,8 +254,8 @@ class PageLancamento(QWidget):
             lista_itens.append({
                 'codigo': self.table_itens.item(row, 0).text(),
                 'qtd': self.table_itens.item(row, 1).text(),
-                'valor': float(self.table_itens.item(row, 2).text().replace("R$ ", "")),
-                'ressarcimento': float(self.table_itens.item(row, 5).text().replace("R$ ", ""))
+                'valor': float(self.table_itens.item(row, 2).text().replace("R$ ", "").replace(",", ".")),
+                'ressarcimento': float(self.table_itens.item(row, 5).text().replace("R$ ", "").replace(",", "."))
             })
             
         try:

@@ -4,53 +4,13 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineE
                                QComboBox, QPushButton, QFrame, QTableWidget, QTableWidgetItem, 
                                QHeaderView, QMessageBox)
 from PySide6.QtCore import Qt
-from database.connection import DatabaseConnection # Mantendo sua importação original
-from controllers import AnaliseController
 
-# --- ESTILO ORIGINAL (MANTIDO) ---
-STYLE_SHEET = """
-QWidget { background-color: #12161f; color: #dce1e8; font-family: 'Segoe UI', sans-serif; font-size: 13px; }
+# --- Importação do Controller ---
+from controllers.analise_controller import AnaliseController
 
-/* CARD PRINCIPAL */
-QFrame#FormCard { background-color: #1b212d; border-radius: 8px; border: 1px solid #2c3545; }
-
-/* INPUTS */
-QLineEdit, QComboBox { background-color: #171c26; border: 1px solid #2c3545; border-radius: 4px; padding: 6px; color: #e0e6ed; }
-QLineEdit:focus, QComboBox:focus { border: 1px solid #3a5f8a; background-color: #1a202c; }
-QLineEdit:read-only { background-color: #141820; color: #718096; border: 1px solid #252b38; }
-
-/* LABELS */
-QLabel { background-color: transparent; color: #a0aec0; font-weight: 500; }
-QLabel#SectionTitle { color: #8ab4f8; font-size: 15px; font-weight: bold; padding-bottom: 5px; border-bottom: 1px solid #2c3545; }
-
-/* STATUS LABELS */
-QLabel#StatusProcedente { color: #48bb78; font-weight: bold; background-color: #1b212d; border: 1px solid #2f855a; }
-QLabel#StatusImprocedente { color: #f56565; font-weight: bold; background-color: #1b212d; border: 1px solid #c53030; }
-QLabel#StatusNeutro { color: #a0aec0; background-color: #1b212d; border: 1px solid #2c3545; }
-
-/* TABELA */
-QTableWidget { background-color: #171c26; alternate-background-color: #202736; gridline-color: #2c3545; border: none; font-size: 13px; }
-QHeaderView::section { background-color: #283042; color: #e0e6ed; padding: 6px; border: 1px solid #2c3545; font-weight: bold; text-transform: uppercase; }
-QTableWidget::item:selected { background-color: #3a5f8a; color: white; }
-
-/* SCROLLBARS */
-QScrollBar:vertical { background: #171c26; width: 8px; margin: 0px; }
-QScrollBar::handle:vertical { background-color: #3a5f8a; min-height: 30px; border-radius: 4px; }
-QScrollBar::handle:vertical:hover { background-color: #4b7bc0; }
-QScrollBar:horizontal { background: #171c26; height: 8px; margin: 0px; }
-QScrollBar::handle:horizontal { background-color: #3a5f8a; min-width: 30px; border-radius: 4px; }
-QScrollBar::handle:horizontal:hover { background-color: #4b7bc0; }
-QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical, 
-QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { width: 0px; height: 0px; background: none; }
-QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical,
-QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal { background: none; }
-
-/* BOTÕES */
-QPushButton#btn_primary { background-color: #2e7d32; color: white; border: 1px solid #1b5e20; padding: 8px 20px; border-radius: 4px; font-weight: bold; }
-QPushButton#btn_primary:hover { background-color: #388e3c; }
-QPushButton#btn_secondary { background-color: #1b212d; color: #a0aec0; border: 1px solid #2c3e50; padding: 8px 20px; border-radius: 4px; }
-QPushButton#btn_secondary:hover { background-color: #2c3545; color: white; }
-"""
+# --- Importação do Estilo Padronizado ---
+# Certifique-se de ter criado o arquivo styles/analise_styles.py
+from styles.analise_styles import ANALISE_STYLES
 
 class PageAnalise(QWidget):
     def __init__(self):
@@ -58,8 +18,10 @@ class PageAnalise(QWidget):
         # --- INTEGRAÇÃO CONTROLLER ---
         self.controller = AnaliseController()
         
-        self.setWindowTitle("Análise Técnica de itens")
-        self.setStyleSheet(STYLE_SHEET)
+        self.setWindowTitle("Análise Técnica de Itens")
+        
+        # --- APLICAÇÃO DO ESTILO ---
+        self.setStyleSheet(ANALISE_STYLES)
 
         self.codigos_avaria = {
             "001": {"desc": "Dano Físico / Quebra", "status": "Improcedente"},
@@ -77,13 +39,13 @@ class PageAnalise(QWidget):
         card_tabela = QFrame(objectName="FormCard")
         layout_tabela = QVBoxLayout(card_tabela)
         
-        lbl_lista = QLabel("itens Aguardando Análise")
+        lbl_lista = QLabel("Itens Aguardando Análise")
         lbl_lista.setObjectName("SectionTitle")
         layout_tabela.addWidget(lbl_lista)
 
         self.table = QTableWidget()
         
-        # --- ALTERAÇÃO 1: Colunas Solicitadas ---
+        # Colunas Solicitadas
         colunas = ["ENTRADA", "ITEM", "CÓD. ANÁLISE", "NOTA FISCAL", "RESSARCIMENTO"]
         self.table.setColumnCount(len(colunas))
         self.table.setHorizontalHeaderLabels(colunas)
@@ -94,8 +56,8 @@ class PageAnalise(QWidget):
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
         self.table.setShowGrid(True) 
         
+        # Todas as colunas com mesmo tamanho (Stretch)
         header = self.table.horizontalHeader()
-        # --- ALTERAÇÃO 2: Todas as colunas com mesmo tamanho (Stretch) ---
         header.setSectionResizeMode(QHeaderView.Stretch)
         
         self.table.itemClicked.connect(self.carregar_item_para_analise)
@@ -156,7 +118,7 @@ class PageAnalise(QWidget):
         self.lbl_status_resultado.setObjectName("StatusNeutro")
         self.lbl_status_resultado.setAlignment(Qt.AlignCenter)
         self.lbl_status_resultado.setFixedSize(130, 32)
-        self.lbl_status_resultado.setStyleSheet("border-radius: 4px;")
+        # O estilo (borda/cor) virá do stylesheet agora, baseado no ID
 
         self.btn_cancelar = QPushButton(" Cancelar")
         self.btn_cancelar.setObjectName("btn_secondary")
@@ -185,45 +147,42 @@ class PageAnalise(QWidget):
     def criar_item_tabela(self, texto):
         """Helper para criar item centralizado"""
         item = QTableWidgetItem(str(texto) if texto else "")
-        # --- ALTERAÇÃO 3: Alinhamento ao Centro ---
         item.setTextAlignment(Qt.AlignCenter)
         return item
 
     def carregar_dados_tabela(self):
-        # Busca real do banco
-        itens_db = self.controller.listar_pendentes()
+        # Busca a lista de OBJETOS DTO do controller
+        itens_dto = self.controller.listar_pendentes()
         
         self.table.setRowCount(0)
-        for item in itens_db:
+        
+        # Agora 'item' é um objeto ItemPendenteDTO
+        for item in itens_dto:
             row = self.table.rowCount()
             self.table.insertRow(row)
             
-            # 1. ENTRADA (Salvamos o ID oculto aqui)
-            val_entrada = self.criar_item_tabela(item['data_fmt'])
-            val_entrada.setData(Qt.UserRole, item['id']) 
+            # 1. ENTRADA (Acessando atributo .data_fmt e .id)
+            val_entrada = self.criar_item_tabela(item.data_fmt)
+            val_entrada.setData(Qt.UserRole, item.id) 
             self.table.setItem(row, 0, val_entrada)
 
-            # 2. ITEM
-            self.table.setItem(row, 1, self.criar_item_tabela(item['codigo_item']))
+            # 2. ITEM (Acessando .codigo_item)
+            self.table.setItem(row, 1, self.criar_item_tabela(item.codigo_item))
 
-            # 3. CÓD. ANÁLISE
-            self.table.setItem(row, 2, self.criar_item_tabela(item['codigo_analise']))
+            # 3. CÓD. ANÁLISE (Acessando .codigo_analise)
+            self.table.setItem(row, 2, self.criar_item_tabela(item.codigo_analise))
 
-            # 4. NOTA FISCAL
-            self.table.setItem(row, 3, self.criar_item_tabela(item['numero_nota']))
+            # 4. NOTA FISCAL (Acessando .numero_nota)
+            self.table.setItem(row, 3, self.criar_item_tabela(item.numero_nota))
 
-            # 5. RESSARCIMENTO (Com proteção contra erro e formatação)
-            # O .get() evita o KeyError se a coluna não vier do banco
-            valor_raw = item.get('ressarcimento') 
-            
-            if valor_raw is not None:
-                # Formata float 100.5 para string "100,50"
-                valor_fmt = f"{float(valor_raw):.2f}".replace('.', ',')
+            # 5. RESSARCIMENTO (Acessando .ressarcimento)
+            if item.ressarcimento is not None:
+                valor_fmt = f"{item.ressarcimento:.2f}".replace('.', ',')
             else:
                 valor_fmt = "0,00"
 
             self.table.setItem(row, 4, self.criar_item_tabela(valor_fmt))
-
+            
     def carregar_item_para_analise(self, item):
         row = item.row()
         
@@ -264,6 +223,7 @@ class PageAnalise(QWidget):
             self.lbl_status_resultado.setText("AGUARDANDO")
             self.lbl_status_resultado.setObjectName("StatusNeutro")
         
+        # Força a atualização do estilo (necessário ao mudar o objectName dinamicamente)
         self.lbl_status_resultado.style().unpolish(self.lbl_status_resultado)
         self.lbl_status_resultado.style().polish(self.lbl_status_resultado)
 
@@ -296,6 +256,11 @@ class PageAnalise(QWidget):
             self.txt_desc_avaria.clear()
             self.lbl_status_resultado.setText("AGUARDANDO")
             self.lbl_status_resultado.setObjectName("StatusNeutro")
+            
+            # Atualiza estilo do status para neutro
+            self.lbl_status_resultado.style().unpolish(self.lbl_status_resultado)
+            self.lbl_status_resultado.style().polish(self.lbl_status_resultado)
+            
             self.carregar_dados_tabela()
         except Exception as e:
             QMessageBox.critical(self, "Erro", str(e))

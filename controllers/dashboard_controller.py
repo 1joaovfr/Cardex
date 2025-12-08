@@ -1,68 +1,49 @@
-from database.connection import DatabaseConnection
+from models.dashboard_model import DashboardModel
+from dtos.dashboard_dto import (
+    DashboardDTO, ComparativoFinDTO, StatusDTO, 
+    EntradaMensalDTO
+)
 
 class DashboardController:
     def __init__(self):
-        self.db = DatabaseConnection()
+        self.model = DashboardModel()
 
-    def get_kpis(self):
-        kpis = {}
+    def get_kpis(self) -> DashboardDTO:
+        # 1. Busca dados do Model
+        # Removemos a chamada de 'get_evolucao_lead_time' pois ela não existe mais no Model
+        val_lead_time_geral = self.model.get_lead_time_geral()
         
-        # --- 0. KPI Total (Valor em Análise) ---
-        # CORREÇÃO: Tabela 'itens_notas' (Plural)
-        sql_total = "SELECT SUM(valor_item) as total FROM itens_notas WHERE status != 'Concluído'"
-        res_total = self.db.execute_query(sql_total, fetch=True)
-        kpis['total_valor'] = res_total[0]['total'] if res_total and res_total[0]['total'] else 0.0
+        raw_fin = self.model.get_comparativo_financeiro()
+        raw_status = self.model.get_status_geral()
+        raw_entrada = self.model.get_entrada_mensal()
 
-        # --- 1. Crescimento / Evolução Mensal ---
-        # CORREÇÃO: Join com tabela 'notas_fiscais'
-        sql_crescimento = """
-            SELECT TO_CHAR(N.data_lancamento, 'YYYY-MM') as mes, 
-                   SUM(L.valor_item) as total,
-                   COUNT(*) as qtd 
-            FROM itens_notas L
-            INNER JOIN notas_fiscais N ON L.id_nota_fiscal = N.id
-            GROUP BY mes 
-            ORDER BY mes DESC
-            LIMIT 6
-        """
-        kpis['crescimento'] = self.db.execute_query(sql_crescimento, fetch=True)
+        # 2. Converte para DTOs (Listas)
+        list_fin = [
+            ComparativoFinDTO(
+                mes=d['mes'], 
+                valor_recebido=float(d['val_recebido']), 
+                valor_retornado=float(d['val_retornado'])
+            ) for d in raw_fin
+        ]
 
-        # --- 2. Top 5 Produtos ---
-        # CORREÇÃO: 
-        # Tabela 'Produtos' virou 'itens'
-        # Coluna 'descricao' virou 'descricao_item'
-        # Coluna 'codigo_produto' virou 'codigo_item'
-        sql_top5 = """
-            SELECT I.descricao_item as produto, 
-                   COUNT(*) as qtd,
-                   SUM(L.valor_item) as valor
-            FROM itens_notas L
-            INNER JOIN itens I ON L.codigo_item = I.codigo_item
-            WHERE L.procedente_improcedente = 'Procedente' 
-            GROUP BY I.descricao_item 
-            ORDER BY qtd DESC 
-            LIMIT 5
-        """
-        kpis['top5'] = self.db.execute_query(sql_top5, fetch=True)
+        list_status = [
+            StatusDTO(status=d['status_final'], qtd=int(d['qtd']))
+            for d in raw_status
+        ]
 
-        # --- 3. Status ---
-        # CORREÇÃO: Tabela 'itens_notas'
-        sql_status = "SELECT status, COUNT(*) as qtd FROM itens_notas GROUP BY status"
-        kpis['status_data'] = self.db.execute_query(sql_status, fetch=True)
+        list_entrada = [
+            EntradaMensalDTO(
+                mes=d['mes'], 
+                qtd=int(d['qtd']), 
+                valor=float(d['valor'])
+            ) for d in raw_entrada
+        ]
 
-        # --- 4. Pendentes ---
-        # CORREÇÃO: Tabela 'itens_notas' e 'notas_fiscais' (não notas_fiscaisF)
-        sql_pendentes = """
-            SELECT TO_CHAR(N.data_lancamento, 'YYYY-MM') as mes, 
-                   COUNT(*) as qtd, 
-                   SUM(L.valor_item) as valor
-            FROM itens_notas L
-            INNER JOIN notas_fiscais N ON L.id_nota_fiscal = N.id
-            WHERE L.status = 'Pendente'
-            GROUP BY mes
-            ORDER BY mes DESC
-            LIMIT 6
-        """
-        kpis['pendentes'] = self.db.execute_query(sql_pendentes, fetch=True)
-
-        return kpis
+        # 3. Retorna o DTO
+        # Note que não passamos mais 'evolucao_lead_time' (lista), apenas 'lead_time_geral' (float)
+        return DashboardDTO(
+            comparativo_financeiro=list_fin,
+            status_data=list_status,
+            entrada_mensal=list_entrada,
+            lead_time_geral=val_lead_time_geral 
+        )

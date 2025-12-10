@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List
+from typing import List, Optional
 
 # --- DTOs AUXILIARES ---
 
@@ -31,5 +31,6 @@ class DashboardDTO:
     comparativo_financeiro: List
     status_data: List
     entrada_mensal: List
-    # Adicione esta linha:
-    evolucao_lead_time: Optional[float] = 0.0
+    
+    # Campo que guarda o Gap (Hoje - Data Recebimento da última nota)
+    gap_cronologico: Optional[float] = 0.0

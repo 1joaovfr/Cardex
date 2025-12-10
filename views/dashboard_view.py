@@ -90,10 +90,10 @@ class PageDashboard(QWidget):
         fig3 = self.criar_grafico_entrada(kpis.entrada_mensal)
         self.grid.addWidget(self.criar_card("Itens Recebidos por Mês (Qtd x R$)", fig3), 1, 0)
 
-        # 4. Lead Time (Gap Lançamento)
-        # Título alterado para refletir a nova lógica
-        fig4 = self.criar_grafico_lead_time(kpis.evolucao_lead_time)
-        self.grid.addWidget(self.criar_card("Gap Médio: Recebimento -> Lançamento", fig4), 1, 1)
+        # 4. Velocímetro (GAP Cronológico)
+        # Passamos o novo campo do DTO
+        fig4 = self.criar_grafico_defasagem(kpis.gap_cronologico)
+        self.grid.addWidget(self.criar_card("Dias de Atraso (Recebimento vs Hoje)", fig4), 1, 1)
 
     def criar_card(self, titulo, fig):
         card = QFrame(objectName="Card")
@@ -184,34 +184,38 @@ class PageDashboard(QWidget):
         fig.update_yaxes(showgrid=False, secondary_y=True)
         return fig
 
-    def criar_grafico_lead_time(self, valor_medio):
+    def criar_grafico_defasagem(self, valor_dias):
         """
-        Cria um Gauge Chart (Velocímetro) com a Média Geral.
-        Recebe um float único (ex: 4.5), não uma lista.
+        Calcula a 'Recência' da informação.
+        Valor mostrado = Hoje - DataRecebimento da Última Nota Lançada.
         """
-        if valor_medio is None: return None
+        if valor_dias is None: return None
         
-        # Meta definida (7 Dias)
-        META = 7
+        # Meta: O ideal é que a equipe esteja processando itens que chegaram a no máximo 2 dias.
+        META = 2.0 
 
         fig = go.Figure(go.Indicator(
             mode = "gauge+number+delta",
-            value = valor_medio,
+            value = valor_dias,
             
-            # Delta mostra a diferença para a meta (Vermelho se estiver acima, Verde se abaixo)
+            # ACELERADOR:
+            # increasing color = Vermelho (Pois se o gap sobe, estamos atrasando mais)
+            # decreasing color = Verde (Pois se o gap desce, estamos alcançando o dia atual)
             delta = {
                 'reference': META, 
-                'increasing': {'color': COLOR_DANGER}, # Se subiu (piorou), fica vermelho
-                'decreasing': {'color': COLOR_SUCCESS} # Se caiu (melhorou), fica verde
+                'position': "top",
+                'increasing': {'color': COLOR_DANGER}, 
+                'decreasing': {'color': COLOR_SUCCESS} 
             },
             
             title = {
-                'text': "Média Geral (6 Meses)", 
+                'text': "Idade da Nota Mais Recente", 
                 'font': {'size': 14, 'color': COLOR_TEXT_DIM}
             },
             
             gauge = {
-                'axis': {'range': [0, 15], 'tickwidth': 1, 'tickcolor': COLOR_TEXT},
+                # Faixa até 20 dias para cobrir o cenário de atraso
+                'axis': {'range': [0, 20], 'tickwidth': 1, 'tickcolor': COLOR_TEXT},
                 'bar': {'color': CHART_NEON_BLUE}, # Cor do ponteiro
                 'bgcolor': "rgba(0,0,0,0)",
                 'borderwidth': 2,
@@ -219,9 +223,9 @@ class PageDashboard(QWidget):
                 
                 # Faixas de Cores
                 'steps': [
-                    {'range': [0, 5], 'color': "rgba(72, 187, 120, 0.2)"},   # 0-5 dias: Verde (Ótimo)
-                    {'range': [5, 7], 'color': "rgba(236, 201, 75, 0.2)"},   # 5-7 dias: Amarelo (Atenção)
-                    {'range': [7, 15], 'color': "rgba(245, 101, 101, 0.2)"}  # >7 dias: Vermelho (Crítico)
+                    {'range': [0, 3], 'color': "rgba(72, 187, 120, 0.2)"},   # 0-3 dias: Ótimo (Tempo Real)
+                    {'range': [3, 7], 'color': "rgba(236, 201, 75, 0.2)"},   # 3-7 dias: Atenção (Semanal)
+                    {'range': [7, 20], 'color': "rgba(245, 101, 101, 0.2)"}  # >7 dias: Crítico
                 ],
                 
                 # Linha da Meta

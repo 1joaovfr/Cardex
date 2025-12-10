@@ -10,8 +10,8 @@ class DashboardController:
 
     def get_kpis(self) -> DashboardDTO:
         # 1. Busca dados do Model
-        # Removemos a chamada de 'get_evolucao_lead_time' pois ela não existe mais no Model
-        val_lead_time_geral = self.model.get_lead_time_geral()
+        # Busca o Gap Cronológico (Hoje - Última Nota Recebida)
+        val_gap = self.model.get_gap_atual_recebimento()
         
         raw_fin = self.model.get_comparativo_financeiro()
         raw_status = self.model.get_status_geral()
@@ -39,11 +39,10 @@ class DashboardController:
             ) for d in raw_entrada
         ]
 
-        # 3. Retorna o DTO
-        # Note que não passamos mais 'evolucao_lead_time' (lista), apenas 'lead_time_geral' (float)
+        # 3. Retorna o DTO com o novo campo 'gap_cronologico' preenchido
         return DashboardDTO(
             comparativo_financeiro=list_fin,
             status_data=list_status,
             entrada_mensal=list_entrada,
-            lead_time_geral=val_lead_time_geral 
+            gap_cronologico=val_gap 
         )

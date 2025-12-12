@@ -2,11 +2,11 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 from contextlib import contextmanager
 
-# CONFIGURAÇÕES DO BANCO (Ajuste sua senha aqui)
+
 DB_CONFIG = {
     'dbname': 'cardex_db',
     'user': 'dev',
-    'password': 'indisa',  # <--- COLOQUE SUA SENHA DO DOCKER AQUI
+    'password': 'indisa',  
     'host': 'localhost',
     'port': '5432'
 }
@@ -84,8 +84,8 @@ class DatabaseConnection:
                         cursor.execute(q)
                 conn.commit()
             print("Banco de dados verificado/criado com sucesso.")
-            return True  # <--- ADICIONE ISSO: Avisa que deu certo!
+            return True  
             
         except Exception as e:
             print(f"Erro ao configurar banco: {e}")
-            return False # <--- ADICIONE ISSO: Avisa que deu errado!
+            return False 

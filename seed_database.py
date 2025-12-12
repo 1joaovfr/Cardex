@@ -98,15 +98,13 @@ class DatabaseSeeder:
             conn.commit()
 
     def seed_movimentacao(self):
-        """
-        Gera Notas Fiscais e Itens de Notas aleatórios para teste.
-        """
-        print("Gerando Movimentação (Notas e Itens)...")
+        print("Gerando Movimentação Histórica (Jan/2025 a Nov/2025)...")
+        print("Aplicando regras: Código de Análise Único e Status (Pendente/Procedente/Improcedente)...")
         
-        # 1. Recuperar dados base para fazer relacionamentos válidos
+        # 1. Recuperar dados base
         lista_cnpjs = []
-        lista_produtos = [] # Tupla (codigo, preco_base)
-        lista_avarias = []  # Tupla (codigo, descricao, status)
+        lista_produtos = [] 
+        lista_avarias = []
 
         with self.db.get_connection() as conn:
             with conn.cursor() as cursor:
@@ -114,104 +112,131 @@ class DatabaseSeeder:
                 lista_cnpjs = [row[0] for row in cursor.fetchall()]
                 
                 cursor.execute("SELECT codigo_item FROM itens")
-                # Preços simulados baseados no ID só para variar
-                lista_produtos = [(row[0], random.randint(50, 500)) for row in cursor.fetchall()]
+                lista_produtos = [row[0] for row in cursor.fetchall()]
                 
                 cursor.execute("SELECT codigo_avaria, descricao_avaria, status_avaria FROM avarias")
                 lista_avarias = cursor.fetchall()
 
         if not lista_cnpjs or not lista_produtos:
-            print("❌ Erro: Não há clientes ou produtos para gerar movimentação.")
+            print("❌ Erro: Faltam clientes ou produtos.")
             return
 
-        # Lógica para o Sequencial do Código de Análise (Simulação local)
-        data_atual = datetime.now()
-        letra_mes = chr(ord('A') + data_atual.month - 1)
-        contador_analise = 1
+        # Controle de sequencial por mês (A=Jan, B=Fev...)
+        # Garante que A0001, A0002... sejam gerados na ordem de entrada
+        contadores_mes = {m: 1 for m in range(1, 13)}
 
-        # Vamos criar 10 Notas Fiscais
-        for i in range(10):
-            cnpj_escolhido = random.choice(lista_cnpjs)
-            num_nota = f"{random.randint(1000, 9999)}"
-            data_emissao = data_atual - timedelta(days=random.randint(5, 30))
-            data_entrada = data_emissao + timedelta(days=random.randint(1, 5))
+        total_notas = 0
+        total_itens = 0
 
-            with self.db.get_connection() as conn:
-                with conn.cursor() as cursor:
-                    # 1. Inserir Nota Fiscal (Assumindo estrutura básica, ajuste conforme seu DB real)
-                    sql_nota = """
-                        INSERT INTO notas_fiscais (numero_nota, cnpj_cliente, data_emissao, data_entrada)
-                        VALUES (%s, %s, %s, %s) RETURNING id
-                    """
-                    # Se sua tabela notas_fiscais tiver colunas diferentes, ajuste aqui
-                    try:
-                        cursor.execute(sql_nota, (num_nota, cnpj_escolhido, data_emissao, data_entrada))
-                        id_nota = cursor.fetchone()[0]
-                    except Exception as e:
-                        print(f"Erro ao criar nota simulada: {e}")
-                        continue # Pula para a próxima se der erro na nota
-
-                    # 2. Inserir Itens para essa Nota (1 a 4 itens por nota)
-                    qtd_itens = random.randint(1, 4)
-                    for _ in range(qtd_itens):
-                        produto = random.choice(lista_produtos) # (cod, preco)
-                        cod_prod = produto[0]
-                        valor = float(produto[1])
-                        
-                        # Decide aleatoriamente se o item já foi analisado ou está pendente
-                        status = random.choice(['Pendente', 'Finalizado', 'Finalizado']) # Peso maior para finalizado
-                        
-                        cod_analise = None
-                        data_analise_item = None
-                        avaria_escolhida = (None, None, None)
-                        procedente = None
-                        ressarcimento = 0.0
-                        
-                        if status == 'Finalizado':
-                            # Aplica sua lógica de Código de Análise
-                            cod_analise = f"{letra_mes}{contador_analise:04d}" # Ex: L0001
-                            contador_analise += 1
-                            
-                            data_analise_item = data_entrada + timedelta(days=random.randint(1, 3))
-                            avaria_escolhida = random.choice(lista_avarias)
-                            procedente = avaria_escolhida[2] # Procedente/Improcedente vindo da tabela avarias
-                            
-                            if procedente == 'Procedente':
-                                ressarcimento = valor # Reembolsa o valor total
-                            else:
-                                ressarcimento = 0.0
-
-                        # SQL de inserção do Item
-                        sql_item = """
-                            INSERT INTO itens_notas (
-                                id_nota_fiscal, codigo_item, valor_item, ressarcimento, 
-                                status, codigo_analise, data_analise, numero_serie,
-                                codigo_avaria, descricao_avaria, procedente_improcedente,
-                                produzido_revenda, fornecedor
-                            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                        """
-                        
-                        valores_item = (
-                            id_nota,
-                            cod_prod,
-                            valor,
-                            ressarcimento,
-                            status,
-                            cod_analise,
-                            data_analise_item,
-                            f"NS{random.randint(10000,99999)}", # Num Serie Fake
-                            avaria_escolhida[0], # Cod Avaria
-                            avaria_escolhida[1], # Desc Avaria
-                            procedente,
-                            random.choice(['Produzido', 'Revenda']),
-                            "Fornecedor Padrão LTDA"
-                        )
-                        
-                        cursor.execute(sql_item, valores_item)
+        # LOOP MESES
+        for mes in range(1, 12): # Jan a Nov
+            letra_mes = chr(ord('A') + mes - 1)
+            
+            # LOOP NOTAS (20 por mês)
+            for _ in range(20): 
+                cnpj_escolhido = random.choice(lista_cnpjs)
+                num_nota = f"{random.randint(10000, 99999)}"
                 
-                conn.commit() # Commit a cada nota completa (nota + itens)
+                dia = random.randint(1, 28)
+                data_nota = datetime(2025, mes, dia)
+                data_recebimento = data_nota + timedelta(days=random.randint(1, 5))
+                data_lancamento = data_recebimento 
+
+                with self.db.get_connection() as conn:
+                    with conn.cursor() as cursor:
+                        # Inserir Nota
+                        sql_nota = """
+                            INSERT INTO notas_fiscais (numero_nota, cnpj_cliente, data_nota, data_recebimento, data_lancamento)
+                            VALUES (%s, %s, %s, %s, %s) RETURNING id
+                        """
+                        try:
+                            cursor.execute(sql_nota, (num_nota, cnpj_escolhido, data_nota, data_recebimento, data_lancamento))
+                            id_nota = cursor.fetchone()[0]
+                            total_notas += 1
+                        except Exception as e:
+                            print(f"Erro nota: {e}")
+                            continue
+
+                        # LOOP ITENS (10 a 15 por nota)
+                        qtd_itens = random.randint(10, 15) 
+                        
+                        for _ in range(qtd_itens):
+                            cod_prod = random.choice(lista_produtos)
+                            valor = round(random.uniform(1000.00, 5000.00), 2)
+                            
+                            # --- REGRA 2: GERA O CÓDIGO DE ANÁLISE SEMPRE ---
+                            # O código nasce junto com o cadastro do item, independente do status
+                            seq = contadores_mes[mes]
+                            cod_analise = f"{letra_mes}{seq:04d}"
+                            contadores_mes[mes] += 1
+                            
+                            # --- REGRA 1: DEFINIÇÃO DE STATUS ---
+                            # 40% chance de ser Pendente
+                            is_pendente = random.random() < 0.40
+                            
+                            # Variáveis padrão (caso Pendente)
+                            status_final = 'Pendente'
+                            data_analise_item = None
+                            cod_avaria = None
+                            desc_avaria = None
+                            proc_improc = None # Coluna redundante ou de apoio
+                            ressarcimento = 0.0
+                            
+                            if not is_pendente:
+                                # Se NÃO é pendente, foi analisado -> Procedente ou Improcedente
+                                avaria_db = random.choice(lista_avarias) # (cod, desc, status_tabela)
+                                
+                                # O status da avaria define o status do item
+                                resultado_analise = avaria_db[2] # 'Procedente' ou 'Improcedente'
+                                
+                                status_final = resultado_analise 
+                                proc_improc = resultado_analise
+                                
+                                cod_avaria = avaria_db[0]
+                                desc_avaria = avaria_db[1]
+                                data_analise_item = data_recebimento + timedelta(days=random.randint(0, 5))
+                                
+                                if status_final == 'Procedente':
+                                    ressarcimento = valor
+                                else:
+                                    ressarcimento = 0.0
+
+                            # SQL Insert
+                            sql_item = """
+                                INSERT INTO itens_notas (
+                                    id_nota_fiscal, codigo_item, valor_item, ressarcimento, 
+                                    status, codigo_analise, data_analise, numero_serie,
+                                    codigo_avaria, descricao_avaria, procedente_improcedente,
+                                    produzido_revenda, fornecedor
+                                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                            """
+                            
+                            valores_item = (
+                                id_nota,
+                                cod_prod,
+                                valor,
+                                ressarcimento,
+                                status_final,      # Agora só entra Pendente, Procedente ou Improcedente
+                                cod_analise,       # Sempre preenchido (Ex: A0005)
+                                data_analise_item, # Null se pendente
+                                f"NS{random.randint(100000,999999)}",
+                                cod_avaria,        # Null se pendente
+                                desc_avaria,       # Null se pendente
+                                proc_improc,       # Null se pendente
+                                random.choice(['Produzido', 'Revenda']),
+                                "Fornecedor Padrão LTDA"
+                            )
+                            cursor.execute(sql_item, valores_item)
+                            total_itens += 1
+                    
+                    conn.commit()
+        
+        print(f"\n✅ Geração Concluída!")
+        print(f"   Total Notas: {total_notas}")
+        print(f"   Total Itens: {total_itens} (Todos com Código de Análise gerado)")
 
     def run(self):
+
         try:
             self.limpar_banco()
             

@@ -1,107 +1,251 @@
+# view_retorno.py
 import sys
-import qtawesome as qta
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, 
                                QComboBox, QPushButton, QFrame, QTableWidget, QTableWidgetItem, 
-                               QHeaderView, QDoubleSpinBox, QMessageBox)
-from PySide6.QtCore import Qt
+                               QHeaderView, QDoubleSpinBox, QMessageBox, QRadioButton, QButtonGroup, QDateEdit)
+from PySide6.QtCore import Qt, QDate
 from controllers import RetornoController
 
+# (Mantenha seu STYLE_SHEET aqui)
 STYLE_SHEET = """
 QWidget { background-color: #12161f; color: #dce1e8; font-family: 'Segoe UI', sans-serif; font-size: 13px; }
 QFrame#Card { background-color: #1b212d; border-radius: 8px; border: 1px solid #2c3545; }
-QLabel#SectionTitle { background-color: #1b212d; color: #8ab4f8; font-size: 16px; font-weight: bold; padding-bottom: 8px; border-bottom: 1px solid #2c3545; margin-bottom: 10px; }
-QLineEdit, QComboBox, QDoubleSpinBox { background-color: #171c26; border: 1px solid #2c3545; border-radius: 4px; padding: 8px; color: #e0e6ed; }
-QLineEdit:focus, QComboBox:focus, QDoubleSpinBox:focus { border: 1px solid #3a5f8a; background-color: #1a202c; }
-QTableWidget { background-color: #171c26; gridline-color: #2c3545; border: 1px solid #2c3545; border-radius: 4px; }
-QHeaderView::section { background-color: #283042; color: #e0e6ed; padding: 6px; border: 1px solid #2c3545; font-weight: bold; }
-QPushButton#btn_primary { background-color: #2e7d32; color: white; border: 1px solid #1b5e20; padding: 10px 20px; border-radius: 4px; font-weight: bold; margin-top: 10px; }
-QPushButton#btn_primary:hover { background-color: #388e3c; }
+QLineEdit, QComboBox, QDoubleSpinBox, QDateEdit { background-color: #171c26; border: 1px solid #2c3545; padding: 8px; color: white; }
+QTableWidget { background-color: #171c26; border: 1px solid #2c3545; }
+QHeaderView::section { background-color: #283042; color: white; padding: 4px; }
+QPushButton { background-color: #3a5f8a; color: white; border: none; padding: 8px; border-radius: 4px; }
+QPushButton:hover { background-color: #4a6f9a; }
+QPushButton#btn_success { background-color: #2e7d32; }
+QPushButton#btn_danger { background-color: #c62828; }
+QLabel#TotalOk { color: #4caf50; font-weight: bold; font-size: 14px; }
+QLabel#TotalErro { color: #f44336; font-weight: bold; font-size: 14px; }
 """
 
 class PageRetorno(QWidget):
     def __init__(self):
         super().__init__()
         self.controller = RetornoController()
-        self.setWindowTitle("Gerenciamento de Estoque")
         self.setStyleSheet(STYLE_SHEET)
+        self.init_ui()
 
-        main_layout = QHBoxLayout(self) 
-        main_layout.setContentsMargins(20, 20, 20, 20)
-        main_layout.setSpacing(20)
+    def init_ui(self):
+        main_layout = QVBoxLayout(self)
 
-        # LADO ESQUERDO: FORM
-        self.frame_form = QFrame(objectName="Card")
-        self.frame_form.setMinimumWidth(300) 
-        layout_form = QVBoxLayout(self.frame_form)
-        layout_form.setContentsMargins(20, 20, 20, 20)
+        # --- ÁREA 1: CABEÇALHO DO RETORNO (Input do Analista) ---
+        self.frame_header = QFrame(objectName="Card")
+        layout_header = QHBoxLayout(self.frame_header)
+        
+        # Seleção de Modo (CNPJ ou Grupo)
+        self.group_tipo_cliente = QButtonGroup(self)
+        self.radio_cnpj = QRadioButton("Por CNPJ")
+        self.radio_grupo = QRadioButton("Por Grupo Econômico")
+        self.radio_cnpj.setChecked(True)
+        self.group_tipo_cliente.addButton(self.radio_cnpj)
+        self.group_tipo_cliente.addButton(self.radio_grupo)
+        
+        layout_header.addWidget(QLabel("Busca:"))
+        layout_header.addWidget(self.radio_cnpj)
+        layout_header.addWidget(self.radio_grupo)
+        
+        self.txt_busca = QLineEdit(placeholderText="Digite CNPJ ou Nome do Grupo...")
+        self.btn_buscar = QPushButton("Buscar Pendências")
+        self.btn_buscar.clicked.connect(self.buscar_notas)
+        
+        layout_header.addWidget(self.txt_busca)
+        layout_header.addWidget(self.btn_buscar)
+        
+        # Dados da Nota de Retorno
+        self.combo_tipo_retorno = QComboBox()
+        self.combo_tipo_retorno.addItems(["GIRO", "SIMPLES"])
+        
+        self.txt_num_nota = QLineEdit(placeholderText="Nº Nota Retorno")
+        self.date_emissao = QDateEdit()
+        self.date_emissao.setDate(QDate.currentDate())
+        self.date_emissao.setCalendarPopup(True)
+        
+        self.spin_valor_retorno = QDoubleSpinBox()
+        self.spin_valor_retorno.setPrefix("R$ ")
+        self.spin_valor_retorno.setRange(0, 1000000)
+        self.spin_valor_retorno.setPlaceholderText("Valor Total da Nota")
+        self.spin_valor_retorno.valueChanged.connect(self.atualizar_totais) # Recalcula status ao mudar valor
 
-        lbl_titulo_form = QLabel("Novo Produto")
-        lbl_titulo_form.setObjectName("SectionTitle")
-        layout_form.addWidget(lbl_titulo_form)
+        layout_header.addWidget(QLabel("|  Dados Retorno:"))
+        layout_header.addWidget(self.combo_tipo_retorno)
+        layout_header.addWidget(self.txt_num_nota)
+        layout_header.addWidget(self.date_emissao)
+        layout_header.addWidget(self.spin_valor_retorno)
 
-        self.txt_codigo = QLineEdit(placeholderText="Ex: P005")
-        self.txt_descricao = QLineEdit(placeholderText="Nome do produto...")
-        self.combo_categoria = QComboBox()
-        self.combo_categoria.addItems(["Peças Motor", "Freios", "Elétrica", "Suspensão"])
-        self.spin_preco = QDoubleSpinBox()
-        self.spin_preco.setPrefix("R$ ")
-        self.spin_preco.setRange(0, 99999)
+        main_layout.addWidget(self.frame_header)
 
-        layout_form.addWidget(QLabel("Código:"))
-        layout_form.addWidget(self.txt_codigo)
-        layout_form.addWidget(QLabel("Descrição:"))
-        layout_form.addWidget(self.txt_descricao)
-        layout_form.addWidget(QLabel("Categoria:"))
-        layout_form.addWidget(self.combo_categoria)
-        layout_form.addWidget(QLabel("Preço Venda:"))
-        layout_form.addWidget(self.spin_preco)
-        layout_form.addStretch() 
+        # --- ÁREA 2: AS TABELAS (Dual List Box) ---
+        layout_tables = QHBoxLayout()
+        
+        # Tabela Esquerda: Itens Disponíveis (Dívidas)
+        self.table_origem = self.criar_tabela(["ID", "NF Origem", "Item", "Saldo (R$)", "Cliente"])
+        
+        # Botões de Ação no Meio
+        layout_btns = QVBoxLayout()
+        self.btn_add = QPushButton(">>")
+        self.btn_remove = QPushButton("<<")
+        self.btn_add.clicked.connect(self.adicionar_item)
+        self.btn_remove.clicked.connect(self.remover_item)
+        layout_btns.addStretch()
+        layout_btns.addWidget(self.btn_add)
+        layout_btns.addWidget(self.btn_remove)
+        layout_btns.addStretch()
 
-        self.btn_salvar = QPushButton(" Adicionar")
-        self.btn_salvar.setObjectName("btn_primary")
-        self.btn_salvar.setIcon(qta.icon('fa5s.plus', color='white'))
-        self.btn_salvar.clicked.connect(self.salvar_produto)
-        layout_form.addWidget(self.btn_salvar)
+        # Tabela Direita: Itens Selecionados para Abatimento
+        self.table_destino = self.criar_tabela(["ID", "NF Origem", "Item", "Valor Abatido (R$)", "Cliente"])
 
-        # LADO DIREITO: TABELA
-        self.frame_table = QFrame(objectName="Card")
-        layout_table = QVBoxLayout(self.frame_table)
-        layout_table.setContentsMargins(20, 20, 20, 20)
+        layout_tables.addWidget(self.table_origem, stretch=1)
+        layout_tables.addLayout(layout_btns)
+        layout_tables.addWidget(self.table_destino, stretch=1)
+        
+        main_layout.addLayout(layout_tables)
 
-        lbl_titulo_table = QLabel("Produtos Cadastrados")
-        lbl_titulo_table.setObjectName("SectionTitle")
-        layout_table.addWidget(lbl_titulo_table)
+        # --- ÁREA 3: RODAPÉ E TOTAIS ---
+        self.frame_footer = QFrame(objectName="Card")
+        layout_footer = QHBoxLayout(self.frame_footer)
+        
+        self.lbl_status = QLabel("Aguardando seleção...")
+        self.lbl_status.setObjectName("TotalOk") # Começa verde
+        
+        self.btn_confirmar = QPushButton("CONFIRMAR RETORNO")
+        self.btn_confirmar.setObjectName("btn_success")
+        self.btn_confirmar.setMinimumHeight(40)
+        self.btn_confirmar.clicked.connect(self.salvar_final)
+        self.btn_confirmar.setEnabled(False) # Só habilita se bater os valores
 
-        self.table = QTableWidget()
-        colunas = ["Código", "Descrição", "Categoria", "Preço"]
-        self.table.setColumnCount(len(colunas))
-        self.table.setHorizontalHeaderLabels(colunas)
-        self.table.verticalHeader().setVisible(False)
-        self.table.setAlternatingRowColors(True)
-        self.table.setSelectionBehavior(QTableWidget.SelectRows)
-        self.table.setEditTriggers(QTableWidget.NoEditTriggers)
-        header = self.table.horizontalHeader()
-        header.setSectionResizeMode(QHeaderView.Stretch)
+        layout_footer.addWidget(self.lbl_status)
+        layout_footer.addStretch()
+        layout_footer.addWidget(self.btn_confirmar)
 
-        layout_table.addWidget(self.table)
+        main_layout.addWidget(self.frame_footer)
 
-        main_layout.addWidget(self.frame_form, stretch=1)
-        main_layout.addWidget(self.frame_table, stretch=2)
+    def criar_tabela(self, colunas):
+        table = QTableWidget()
+        table.setColumnCount(len(colunas))
+        table.setHorizontalHeaderLabels(colunas)
+        table.verticalHeader().setVisible(False)
+        table.setSelectionBehavior(QTableWidget.SelectRows)
+        table.setEditTriggers(QTableWidget.NoEditTriggers)
+        table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        return table
 
-    def salvar_produto(self):
-        cod = self.txt_codigo.text()
-        desc = self.txt_descricao.text()
-        cat = self.combo_categoria.currentText()
-        preco = self.spin_preco.value()
+    def buscar_notas(self):
+        modo = "CNPJ" if self.radio_cnpj.isChecked() else "GRUPO"
+        termo = self.txt_busca.text()
+        
+        itens = self.controller.buscar_pendencias(termo, modo)
+        
+        self.table_origem.setRowCount(0)
+        self.table_destino.setRowCount(0) # Limpa seleção anterior
+        
+        for row, item in enumerate(itens):
+            self.table_origem.insertRow(row)
+            # Guardamos o ID oculto ou na coluna 0
+            self.table_origem.setItem(row, 0, QTableWidgetItem(str(item['id'])))
+            self.table_origem.setItem(row, 1, QTableWidgetItem(str(item['numero_nota'])))
+            self.table_origem.setItem(row, 2, QTableWidgetItem(f"{item['codigo_item']}"))
+            self.table_origem.setItem(row, 3, QTableWidgetItem(f"{item['saldo_financeiro']:.2f}"))
+            self.table_origem.setItem(row, 4, QTableWidgetItem(item['nome_cliente']))
 
-        if self.controller.salvar_produto(cod, desc, cat, preco):
-            QMessageBox.information(self, "Sucesso", "Produto adicionado!")
-            # Adiciona visualmente só para feedback imediato
-            row = self.table.rowCount()
-            self.table.insertRow(row)
-            self.table.setItem(row, 0, QTableWidgetItem(cod))
-            self.table.setItem(row, 1, QTableWidgetItem(desc))
-            self.table.setItem(row, 2, QTableWidgetItem(cat))
-            self.table.setItem(row, 3, QTableWidgetItem(f"R$ {preco:.2f}"))
+    def adicionar_item(self):
+        # Move da Esquerda para Direita
+        row = self.table_origem.currentRow()
+        if row < 0: return
+
+        # Pega os dados
+        id_item = self.table_origem.item(row, 0).text()
+        nf = self.table_origem.item(row, 1).text()
+        sku = self.table_origem.item(row, 2).text()
+        saldo = self.table_origem.item(row, 3).text()
+        cliente = self.table_origem.item(row, 4).text()
+
+        # Adiciona na direita
+        dest_row = self.table_destino.rowCount()
+        self.table_destino.insertRow(dest_row)
+        self.table_destino.setItem(dest_row, 0, QTableWidgetItem(id_item))
+        self.table_destino.setItem(dest_row, 1, QTableWidgetItem(nf))
+        self.table_destino.setItem(dest_row, 2, QTableWidgetItem(sku))
+        self.table_destino.setItem(dest_row, 3, QTableWidgetItem(saldo)) # Valor cheio por padrão
+        self.table_destino.setItem(dest_row, 4, QTableWidgetItem(cliente))
+
+        # Remove da origem visualmente
+        self.table_origem.removeRow(row)
+        self.atualizar_totais()
+
+    def remover_item(self):
+        # Move da Direita para Esquerda (Desfazer seleção)
+        row = self.table_destino.currentRow()
+        if row < 0: return
+
+        # Lógica inversa... recupera dados e devolve pra tabela origem
+        # (Implementação simplificada: Apenas deleta da direita e teria que buscar no banco de novo 
+        # ou guardar num cache local para devolver pra esquerda. 
+        # Para produção: Mova a linha de volta para table_origem).
+        self.table_destino.removeRow(row)
+        self.atualizar_totais()
+
+    def atualizar_totais(self):
+        valor_nota_retorno = self.spin_valor_retorno.value()
+        
+        total_selecionado = 0.0
+        for i in range(self.table_destino.rowCount()):
+            val_str = self.table_destino.item(i, 3).text().replace(",", ".") # Cuida do formato
+            total_selecionado += float(val_str)
+
+        # Lógica Visual de Assertividade
+        diferenca = valor_nota_retorno - total_selecionado
+        
+        if total_selecionado == 0:
+            self.lbl_status.setText("Selecione itens para abater.")
+            self.lbl_status.setObjectName("TotalOk")
+            self.btn_confirmar.setEnabled(False)
+        elif total_selecionado > valor_nota_retorno:
+            self.lbl_status.setText(f"ERRO: Itens (R$ {total_selecionado:.2f}) excedem Nota Retorno (R$ {valor_nota_retorno:.2f})")
+            self.lbl_status.setObjectName("TotalErro") # Fica Vermelho via CSS
+            self.btn_confirmar.setEnabled(False)
         else:
-            QMessageBox.warning(self, "Erro", "Erro ao salvar (Código duplicado?)")
+            self.lbl_status.setText(f"OK. Crédito Restante/Sobra: R$ {diferenca:.2f}")
+            self.lbl_status.setObjectName("TotalOk") # Fica Verde
+            self.btn_confirmar.setEnabled(True)
+        
+        # Força atualização do estilo
+        self.lbl_status.style().unpolish(self.lbl_status)
+        self.lbl_status.style().polish(self.lbl_status)
+
+    def salvar_final(self):
+        # Monta o objeto para o Controller
+        cabecalho = {
+            "numero": self.txt_num_nota.text(),
+            "data": self.date_emissao.date().toString("yyyy-MM-dd"),
+            "tipo": self.combo_tipo_retorno.currentText(),
+            "valor_total": self.spin_valor_retorno.value(),
+            "cnpj": self.txt_busca.text() if self.radio_cnpj.isChecked() else None,
+            "grupo": self.txt_busca.text() if self.radio_grupo.isChecked() else None
+        }
+
+        itens = []
+        for i in range(self.table_destino.rowCount()):
+            itens.append({
+                "id": self.table_destino.item(i, 0).text(),
+                "valor_abatido": float(self.table_destino.item(i, 3).text())
+            })
+
+        sucesso, msg = self.controller.processar_retorno(cabecalho, itens)
+        
+        if sucesso:
+            QMessageBox.information(self, "Sucesso", msg)
+            self.table_destino.setRowCount(0)
+            self.table_origem.setRowCount(0)
+            self.spin_valor_retorno.setValue(0)
+        else:
+            QMessageBox.warning(self, "Erro", msg)
+
+if __name__ == "__main__":
+    from PySide6.QtWidgets import QApplication
+    app = QApplication(sys.argv)
+    window = PageRetorno()
+    window.show()
+    sys.exit(app.exec())

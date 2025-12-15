@@ -6,30 +6,23 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineE
                                QDoubleSpinBox, QSpinBox)
 from PySide6.QtCore import Qt, QDate
 
-# --- Importação do Controller ---
-from controllers.lancamento_controller import LancamentoController
+from controllers import LancamentoController
 
-# --- Importação do Estilo Padronizado ---
-# Certifique-se de ter criado os arquivos styles/lancamento_styles.py, common.py e theme.py
 from styles.lancamento_styles import LANCAMENTO_STYLES
 
 class PageLancamento(QWidget):
     def __init__(self):
         super().__init__()
-        # --- INTEGRAÇÃO CONTROLLER ---
         self.controller = LancamentoController()
         
         self.setWindowTitle("Lançamento de NF-e")
         
-        # --- APLICAÇÃO DO ESTILO ---
         self.setStyleSheet(LANCAMENTO_STYLES)
 
-        # Layout Principal
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(20, 20, 20, 20)
         main_layout.setSpacing(15)
 
-        # CARD 1: CABEÇALHO
         card_header = QFrame(objectName="FormCard")
         layout_header = QVBoxLayout(card_header)
         
@@ -39,7 +32,6 @@ class PageLancamento(QWidget):
         
         row1 = QHBoxLayout()
         
-        # Inputs
         self.txt_cnpj = QLineEdit(placeholderText="CNPJ Emitente")
         self.txt_cnpj.setInputMask("99.999.999/9999-99;_")
         self.txt_cnpj.setFixedWidth(140)

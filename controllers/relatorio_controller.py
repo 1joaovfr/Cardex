@@ -1,5 +1,5 @@
 # controllers/relatorio_controller.py
-from models.relatorio_model import RelatorioModel
+from models import RelatorioModel
 
 class RelatorioController:
     def __init__(self):

@@ -1,5 +1,5 @@
 from datetime import datetime
-from models.analise_model import AnaliseModel
+from models import AnaliseModel
 from dtos.analise_dto import ItemPendenteDTO, ResultadoAnaliseDTO
 
 class AnaliseController:

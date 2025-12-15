@@ -1,4 +1,4 @@
-from models.dashboard_model import DashboardModel
+from models import DashboardModel
 from dtos.dashboard_dto import (
     DashboardDTO, ComparativoFinDTO, StatusDTO, 
     EntradaMensalDTO

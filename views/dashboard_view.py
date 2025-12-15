@@ -7,8 +7,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import qtawesome as qta
 
-# --- Controller ---
-from controllers.dashboard_controller import DashboardController
+from controllers import DashboardController
 
 # --- Estilos ---
 from styles.dashboard_styles import DASHBOARD_STYLES

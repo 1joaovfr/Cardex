@@ -1,4 +1,3 @@
-# controllers.py
 from models import RetornoModel
 
 class RetornoController:

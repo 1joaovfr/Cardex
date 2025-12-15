@@ -9,11 +9,8 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushB
                                QDialog, QDateEdit, QFormLayout)
 from PySide6.QtCore import Qt, QDate, QPoint
 
-# --- Importação do Controller ---
-from controllers.relatorio_controller import RelatorioController
+from controllers import RelatorioController
 
-# --- Importação dos Estilos Padronizados ---
-# Certifique-se de ter criado styles/relatorio_styles.py e styles/common.py
 from styles.relatorio_styles import RELATORIO_STYLES
 from styles.common import get_date_edit_style
 
@@ -25,11 +22,8 @@ class ExportarPopup(QDialog):
         self.setWindowFlags(Qt.Popup | Qt.FramelessWindowHint)
         self.setFixedWidth(200) 
         
-        # Gera o ícone temporário para usar na seta do DateEdit
         self.icon_path = self.gerar_icone_calendario()
         
-        # --- APLICAÇÃO DE ESTILO ---
-        # Combina o estilo do Relatório + Estilo do DateEdit com o ícone gerado
         style_date_edit = get_date_edit_style(self.icon_path)
         self.setStyleSheet(RELATORIO_STYLES + style_date_edit)
         
@@ -37,7 +31,6 @@ class ExportarPopup(QDialog):
         layout.setContentsMargins(10, 10, 10, 10)
         layout.setSpacing(8)
 
-        # Estilo inline apenas para labels muito pequenas deste popup
         lbl_style = "color: #a0aec0; font-size: 11px; font-weight: bold;"
         
         lbl_ini = QLabel("De:")

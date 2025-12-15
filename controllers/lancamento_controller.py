@@ -1,4 +1,4 @@
-from models.lancamento_model import LancamentoModel
+from models import LancamentoModel
 from dtos.lancamento_dto import NotaFiscalDTO, ItemNotaDTO
 
 class LancamentoController:

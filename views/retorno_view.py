@@ -1,12 +1,10 @@
-# view_retorno.py
 import sys
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, 
                                QComboBox, QPushButton, QFrame, QTableWidget, QTableWidgetItem, 
                                QHeaderView, QDoubleSpinBox, QMessageBox, QRadioButton, QButtonGroup, QDateEdit)
 from PySide6.QtCore import Qt, QDate
-from controllers import RetornoController
+from controllers.retorno_controller import RetornoController
 
-# (Mantenha seu STYLE_SHEET aqui)
 STYLE_SHEET = """
 QWidget { background-color: #12161f; color: #dce1e8; font-family: 'Segoe UI', sans-serif; font-size: 13px; }
 QFrame#Card { background-color: #1b212d; border-radius: 8px; border: 1px solid #2c3545; }
@@ -65,9 +63,10 @@ class PageRetorno(QWidget):
         
         self.spin_valor_retorno = QDoubleSpinBox()
         self.spin_valor_retorno.setPrefix("R$ ")
-        self.spin_valor_retorno.setRange(0, 1000000)
-        self.spin_valor_retorno.setPlaceholderText("Valor Total da Nota")
-        self.spin_valor_retorno.valueChanged.connect(self.atualizar_totais) # Recalcula status ao mudar valor
+        self.spin_valor_retorno.setRange(0, 10000000) # Aumentei o range
+        # REMOVIDO: self.spin_valor_retorno.setPlaceholderText(...) <- Causava o erro
+        self.spin_valor_retorno.setToolTip("Digite o Valor Total da Nota de Retorno")
+        self.spin_valor_retorno.valueChanged.connect(self.atualizar_totais) 
 
         layout_header.addWidget(QLabel("|  Dados Retorno:"))
         layout_header.addWidget(self.combo_tipo_retorno)
@@ -108,13 +107,13 @@ class PageRetorno(QWidget):
         layout_footer = QHBoxLayout(self.frame_footer)
         
         self.lbl_status = QLabel("Aguardando seleção...")
-        self.lbl_status.setObjectName("TotalOk") # Começa verde
+        self.lbl_status.setObjectName("TotalOk") 
         
         self.btn_confirmar = QPushButton("CONFIRMAR RETORNO")
         self.btn_confirmar.setObjectName("btn_success")
         self.btn_confirmar.setMinimumHeight(40)
         self.btn_confirmar.clicked.connect(self.salvar_final)
-        self.btn_confirmar.setEnabled(False) # Só habilita se bater os valores
+        self.btn_confirmar.setEnabled(False)
 
         layout_footer.addWidget(self.lbl_status)
         layout_footer.addStretch()
@@ -139,11 +138,10 @@ class PageRetorno(QWidget):
         itens = self.controller.buscar_pendencias(termo, modo)
         
         self.table_origem.setRowCount(0)
-        self.table_destino.setRowCount(0) # Limpa seleção anterior
+        self.table_destino.setRowCount(0) 
         
         for row, item in enumerate(itens):
             self.table_origem.insertRow(row)
-            # Guardamos o ID oculto ou na coluna 0
             self.table_origem.setItem(row, 0, QTableWidgetItem(str(item['id'])))
             self.table_origem.setItem(row, 1, QTableWidgetItem(str(item['numero_nota'])))
             self.table_origem.setItem(row, 2, QTableWidgetItem(f"{item['codigo_item']}"))
@@ -151,7 +149,6 @@ class PageRetorno(QWidget):
             self.table_origem.setItem(row, 4, QTableWidgetItem(item['nome_cliente']))
 
     def adicionar_item(self):
-        # Move da Esquerda para Direita
         row = self.table_origem.currentRow()
         if row < 0: return
 
@@ -168,7 +165,7 @@ class PageRetorno(QWidget):
         self.table_destino.setItem(dest_row, 0, QTableWidgetItem(id_item))
         self.table_destino.setItem(dest_row, 1, QTableWidgetItem(nf))
         self.table_destino.setItem(dest_row, 2, QTableWidgetItem(sku))
-        self.table_destino.setItem(dest_row, 3, QTableWidgetItem(saldo)) # Valor cheio por padrão
+        self.table_destino.setItem(dest_row, 3, QTableWidgetItem(saldo))
         self.table_destino.setItem(dest_row, 4, QTableWidgetItem(cliente))
 
         # Remove da origem visualmente
@@ -176,14 +173,11 @@ class PageRetorno(QWidget):
         self.atualizar_totais()
 
     def remover_item(self):
-        # Move da Direita para Esquerda (Desfazer seleção)
         row = self.table_destino.currentRow()
         if row < 0: return
 
-        # Lógica inversa... recupera dados e devolve pra tabela origem
-        # (Implementação simplificada: Apenas deleta da direita e teria que buscar no banco de novo 
-        # ou guardar num cache local para devolver pra esquerda. 
-        # Para produção: Mova a linha de volta para table_origem).
+        # Remove da direita e "força" usuário a buscar novamente se quiser o item de volta
+        # (Para simplificar a lógica visual sem cache local complexo)
         self.table_destino.removeRow(row)
         self.atualizar_totais()
 
@@ -192,10 +186,9 @@ class PageRetorno(QWidget):
         
         total_selecionado = 0.0
         for i in range(self.table_destino.rowCount()):
-            val_str = self.table_destino.item(i, 3).text().replace(",", ".") # Cuida do formato
+            val_str = self.table_destino.item(i, 3).text().replace(",", ".")
             total_selecionado += float(val_str)
 
-        # Lógica Visual de Assertividade
         diferenca = valor_nota_retorno - total_selecionado
         
         if total_selecionado == 0:
@@ -203,20 +196,23 @@ class PageRetorno(QWidget):
             self.lbl_status.setObjectName("TotalOk")
             self.btn_confirmar.setEnabled(False)
         elif total_selecionado > valor_nota_retorno:
-            self.lbl_status.setText(f"ERRO: Itens (R$ {total_selecionado:.2f}) excedem Nota Retorno (R$ {valor_nota_retorno:.2f})")
-            self.lbl_status.setObjectName("TotalErro") # Fica Vermelho via CSS
+            # Caso especial: Se o usuário digitou zero no valor da nota, avisar
+            if valor_nota_retorno == 0:
+                 self.lbl_status.setText(f"Digite o valor da Nota de Retorno acima.")
+            else:
+                 self.lbl_status.setText(f"ERRO: Itens (R$ {total_selecionado:.2f}) excedem Nota Retorno (R$ {valor_nota_retorno:.2f})")
+            
+            self.lbl_status.setObjectName("TotalErro")
             self.btn_confirmar.setEnabled(False)
         else:
             self.lbl_status.setText(f"OK. Crédito Restante/Sobra: R$ {diferenca:.2f}")
-            self.lbl_status.setObjectName("TotalOk") # Fica Verde
+            self.lbl_status.setObjectName("TotalOk")
             self.btn_confirmar.setEnabled(True)
         
-        # Força atualização do estilo
         self.lbl_status.style().unpolish(self.lbl_status)
         self.lbl_status.style().polish(self.lbl_status)
 
     def salvar_final(self):
-        # Monta o objeto para o Controller
         cabecalho = {
             "numero": self.txt_num_nota.text(),
             "data": self.date_emissao.date().toString("yyyy-MM-dd"),
@@ -237,15 +233,13 @@ class PageRetorno(QWidget):
         
         if sucesso:
             QMessageBox.information(self, "Sucesso", msg)
-            self.table_destino.setRowCount(0)
-            self.table_origem.setRowCount(0)
-            self.spin_valor_retorno.setValue(0)
+            self.resetar_tela()
         else:
             QMessageBox.warning(self, "Erro", msg)
 
-if __name__ == "__main__":
-    from PySide6.QtWidgets import QApplication
-    app = QApplication(sys.argv)
-    window = PageRetorno()
-    window.show()
-    sys.exit(app.exec())
+    def resetar_tela(self):
+        self.table_destino.setRowCount(0)
+        self.table_origem.setRowCount(0)
+        self.spin_valor_retorno.setValue(0)
+        self.txt_num_nota.clear()
+        self.lbl_status.setText("Aguardando seleção...")

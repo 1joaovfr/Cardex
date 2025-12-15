@@ -5,22 +5,15 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineE
                                QHeaderView, QMessageBox)
 from PySide6.QtCore import Qt
 
-# --- Importação do Controller ---
-from controllers.analise_controller import AnaliseController
+from controllers import AnaliseController
 
-# --- Importação do Estilo Padronizado ---
-# Certifique-se de ter criado o arquivo styles/analise_styles.py
 from styles.analise_styles import ANALISE_STYLES
 
 class PageAnalise(QWidget):
     def __init__(self):
         super().__init__()
-        # --- INTEGRAÇÃO CONTROLLER ---
         self.controller = AnaliseController()
-        
         self.setWindowTitle("Análise Técnica de Itens")
-        
-        # --- APLICAÇÃO DO ESTILO ---
         self.setStyleSheet(ANALISE_STYLES)
 
         self.codigos_avaria = {
@@ -35,7 +28,6 @@ class PageAnalise(QWidget):
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(15)
 
-        # PARTE 1: TABELA
         card_tabela = QFrame(objectName="FormCard")
         layout_tabela = QVBoxLayout(card_tabela)
         
@@ -45,7 +37,6 @@ class PageAnalise(QWidget):
 
         self.table = QTableWidget()
         
-        # Colunas Solicitadas
         colunas = ["ENTRADA", "ITEM", "CÓD. ANÁLISE", "NOTA FISCAL", "RESSARCIMENTO"]
         self.table.setColumnCount(len(colunas))
         self.table.setHorizontalHeaderLabels(colunas)
@@ -56,7 +47,6 @@ class PageAnalise(QWidget):
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
         self.table.setShowGrid(True) 
         
-        # Todas as colunas com mesmo tamanho (Stretch)
         header = self.table.horizontalHeader()
         header.setSectionResizeMode(QHeaderView.Stretch)
         
@@ -65,7 +55,6 @@ class PageAnalise(QWidget):
         layout_tabela.addWidget(self.table)
         layout.addWidget(card_tabela, stretch=1)
 
-        # PARTE 2: FORMULÁRIO
         card_form = QFrame(objectName="FormCard")
         layout_form = QVBoxLayout(card_form)
         
@@ -73,7 +62,6 @@ class PageAnalise(QWidget):
         lbl_analise.setObjectName("SectionTitle")
         layout_form.addWidget(lbl_analise)
 
-        # Linha 1
         row1 = QHBoxLayout()
         self.txt_id_item = QLineEdit(placeholderText="Cód. análise", readOnly=True)
         self.txt_id_item.setFixedWidth(100) 
@@ -102,7 +90,6 @@ class PageAnalise(QWidget):
 
         layout_form.addLayout(row1)
 
-        # Linha 2
         row_diag = QHBoxLayout()
 
         self.combo_cod_avaria = QComboBox()
@@ -118,7 +105,6 @@ class PageAnalise(QWidget):
         self.lbl_status_resultado.setObjectName("StatusNeutro")
         self.lbl_status_resultado.setAlignment(Qt.AlignCenter)
         self.lbl_status_resultado.setFixedSize(130, 32)
-        # O estilo (borda/cor) virá do stylesheet agora, baseado no ID
 
         self.btn_cancelar = QPushButton(" Cancelar")
         self.btn_cancelar.setObjectName("btn_secondary")
@@ -140,42 +126,33 @@ class PageAnalise(QWidget):
         layout_form.addLayout(row_diag)
         layout.addWidget(card_form)
 
-        # Inicialização
         self.carregar_dados_tabela()
         self.bloquear_form(True)
 
     def criar_item_tabela(self, texto):
-        """Helper para criar item centralizado"""
         item = QTableWidgetItem(str(texto) if texto else "")
         item.setTextAlignment(Qt.AlignCenter)
         return item
 
     def carregar_dados_tabela(self):
-        # Busca a lista de OBJETOS DTO do controller
         itens_dto = self.controller.listar_pendentes()
         
         self.table.setRowCount(0)
         
-        # Agora 'item' é um objeto ItemPendenteDTO
         for item in itens_dto:
             row = self.table.rowCount()
             self.table.insertRow(row)
             
-            # 1. ENTRADA (Acessando atributo .data_fmt e .id)
             val_entrada = self.criar_item_tabela(item.data_fmt)
             val_entrada.setData(Qt.UserRole, item.id) 
             self.table.setItem(row, 0, val_entrada)
 
-            # 2. ITEM (Acessando .codigo_item)
             self.table.setItem(row, 1, self.criar_item_tabela(item.codigo_item))
 
-            # 3. CÓD. ANÁLISE (Acessando .codigo_analise)
             self.table.setItem(row, 2, self.criar_item_tabela(item.codigo_analise))
 
-            # 4. NOTA FISCAL (Acessando .numero_nota)
             self.table.setItem(row, 3, self.criar_item_tabela(item.numero_nota))
 
-            # 5. RESSARCIMENTO (Acessando .ressarcimento)
             if item.ressarcimento is not None:
                 valor_fmt = f"{item.ressarcimento:.2f}".replace('.', ',')
             else:
@@ -186,12 +163,10 @@ class PageAnalise(QWidget):
     def carregar_item_para_analise(self, item):
         row = item.row()
         
-        # Recupera o ID oculto na coluna 0 (ENTRADA)
         id_item = str(self.table.item(row, 0).data(Qt.UserRole))
 
         codigo_analise_visual = self.table.item(row, 2).text()
         
-        # Recupera a descrição na coluna 1 (ITEM)
         desc_item = self.table.item(row, 1).text()
 
         self.bloquear_form(False)
@@ -223,7 +198,6 @@ class PageAnalise(QWidget):
             self.lbl_status_resultado.setText("AGUARDANDO")
             self.lbl_status_resultado.setObjectName("StatusNeutro")
         
-        # Força a atualização do estilo (necessário ao mudar o objectName dinamicamente)
         self.lbl_status_resultado.style().unpolish(self.lbl_status_resultado)
         self.lbl_status_resultado.style().polish(self.lbl_status_resultado)
 
@@ -257,7 +231,6 @@ class PageAnalise(QWidget):
             self.lbl_status_resultado.setText("AGUARDANDO")
             self.lbl_status_resultado.setObjectName("StatusNeutro")
             
-            # Atualiza estilo do status para neutro
             self.lbl_status_resultado.style().unpolish(self.lbl_status_resultado)
             self.lbl_status_resultado.style().polish(self.lbl_status_resultado)
             

@@ -1,5 +1,5 @@
 # models.py
-from database import DatabaseConnection # Sua classe de conexão
+from database.connection import DatabaseConnection # Sua classe de conexão
 
 class RetornoModel:
     def __init__(self):
